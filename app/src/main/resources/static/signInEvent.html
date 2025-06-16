@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head><title>Login Callback</title></head>
+<body>
+<script>
+    (async function () {
+      const res = await fetch('/auth/login', { credentials: 'include' });
+      const data = await res.json();
+
+      if (window.opener) {
+        window.opener.postMessage(data, 'http://localhost:5173');
+        window.close();
+      } else {
+        console.warn('No origin page');
+      }
+    })();
+</script>
+</body>
+</html>
