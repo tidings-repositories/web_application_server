@@ -24,7 +24,7 @@ public class TokenProvider {
         return Jwts.builder()
                 .subject(id)
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + expirationTime))
+                .expiration(new Date(System.currentTimeMillis() + expirationTime * 1000L))
                 .signWith(this.key)
                 .compact();
     }
