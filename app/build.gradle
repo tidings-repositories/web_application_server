@@ -38,6 +38,8 @@ dependencies {
 	implementation 'org.springframework.grpc:spring-grpc-server-web-spring-boot-starter'
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
 	implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
+	implementation platform('software.amazon.awssdk:bom:2.27.21')
+	implementation 'software.amazon.awssdk:s3'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	runtimeOnly 'com.mysql:mysql-connector-j'
