@@ -1,0 +1,82 @@
+package com.delivalue.tidings.domain.profile.controller;
+
+import com.delivalue.tidings.common.RequestValidator;
+import com.delivalue.tidings.common.TokenProvider;
+import com.delivalue.tidings.domain.profile.dto.ProfileResponse;
+import com.delivalue.tidings.domain.profile.dto.ProfileUpdateRequest;
+import com.delivalue.tidings.domain.profile.service.ProfileService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
+@RestController
+@RequestMapping("/profile")
+@RequiredArgsConstructor
+public class ProfileController {
+    private final ProfileService profileService;
+    private final TokenProvider tokenProvider;
+    private final RequestValidator requestValidator;
+
+    @GetMapping
+    public ResponseEntity<ProfileResponse> requestMyProfile(@RequestHeader("Authorization") String authorizationHeader) {
+        int TOKEN_PREFIX_LENGTH = 7;
+
+        if(authorizationHeader != null
+                && authorizationHeader.startsWith("Bearer ")
+                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
+            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+
+            ProfileResponse response = this.profileService.getProfileById(id);
+
+            if(response != null) return ResponseEntity.ok(response);
+            else return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    @PatchMapping
+    public ResponseEntity<?> requestUpdateMyProfile(
+            @RequestHeader("Authorization") String authorizationHeader,
+            @RequestBody Map<String, Object> body
+    ) {
+        int TOKEN_PREFIX_LENGTH = 7;
+
+        if(authorizationHeader != null
+                && authorizationHeader.startsWith("Bearer ")
+                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
+            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+            String name = (String) body.get("user_name");
+            String bio = (String) body.get("bio");
+            String profileImage = (String) body.get("profile_image");
+            Integer badgeId = (Integer) body.get("badge");
+
+            boolean isValid = requestValidator.checkProfileUpdateParameter(name, bio, profileImage);
+            if(!isValid) return ResponseEntity.badRequest().build();
+
+            try {
+                ProfileUpdateRequest profileUpdateRequest = new ProfileUpdateRequest(id, name, bio, profileImage, badgeId);
+                this.profileService.updateProfile(profileUpdateRequest);
+
+                return ResponseEntity.ok().build();
+            } catch (Exception e) {
+                System.out.printf("profile update catch: " + e);
+                return ResponseEntity.internalServerError().build();
+            }
+        }
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    @GetMapping("/{publicId}")
+    public ResponseEntity<ProfileResponse> requestProfile(@PathVariable("publicId") String publicId) {
+        ProfileResponse response = this.profileService.getProfileByPublicId(publicId);
+
+        if(response != null) {
+            return ResponseEntity.ok(response);
+        } else return ResponseEntity.notFound().build();
+    }
+}
