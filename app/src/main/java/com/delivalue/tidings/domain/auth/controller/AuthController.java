@@ -5,6 +5,7 @@ import com.delivalue.tidings.domain.auth.dto.LoginResponse;
 import com.delivalue.tidings.domain.auth.dto.PublicIdValidateResponse;
 import com.delivalue.tidings.domain.auth.dto.RegisterRequest;
 import com.delivalue.tidings.domain.auth.service.AuthService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -16,14 +17,10 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
+@RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;
     private final TokenProvider tokenProvider;
-
-    public AuthController(AuthService authService, TokenProvider tokenProvider) {
-        this.authService = authService;
-        this.tokenProvider = tokenProvider;
-    }
 
     @GetMapping("/login")
     public ResponseEntity<LoginResponse> continueWithGoogle(OAuth2AuthenticationToken authToken, @AuthenticationPrincipal OAuth2User principal) {

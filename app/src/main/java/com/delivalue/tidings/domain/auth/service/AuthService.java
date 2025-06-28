@@ -7,19 +7,16 @@ import com.delivalue.tidings.domain.auth.dto.PublicIdValidateResponse;
 import com.delivalue.tidings.domain.auth.dto.RegisterRequest;
 import com.delivalue.tidings.domain.data.entity.Member;
 import com.delivalue.tidings.domain.data.repository.MemberRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class AuthService {
     private final MemberRepository memberRepository;
     private final TokenProvider tokenProvider;
-
-    public AuthService(MemberRepository memberRepository, TokenProvider tokenProvider) {
-        this.memberRepository = memberRepository;
-        this.tokenProvider = tokenProvider;
-    }
 
     public boolean checkUserExist(String id) {
         Optional<Member> member = memberRepository.findById(id);
