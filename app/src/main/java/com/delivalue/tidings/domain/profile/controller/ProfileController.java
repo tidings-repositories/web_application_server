@@ -2,14 +2,17 @@ package com.delivalue.tidings.domain.profile.controller;
 
 import com.delivalue.tidings.common.RequestValidator;
 import com.delivalue.tidings.common.TokenProvider;
+import com.delivalue.tidings.domain.profile.dto.BadgeListResponse;
 import com.delivalue.tidings.domain.profile.dto.ProfileResponse;
 import com.delivalue.tidings.domain.profile.dto.ProfileUpdateRequest;
 import com.delivalue.tidings.domain.profile.service.ProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -64,6 +67,28 @@ public class ProfileController {
                 return ResponseEntity.ok().build();
             } catch (Exception e) {
                 System.out.printf("profile update catch: " + e);
+                return ResponseEntity.internalServerError().build();
+            }
+        }
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    @GetMapping("/badge")
+    public ResponseEntity<BadgeListResponse> requestMyBadgeList(@RequestHeader("Authorization") String authorizationHeader) {
+        int TOKEN_PREFIX_LENGTH = 7;
+
+        if(authorizationHeader != null
+                && authorizationHeader.startsWith("Bearer ")
+                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
+            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+
+            try {
+                BadgeListResponse badgeListResponse = this.profileService.getBadgeListById(id);
+
+                return ResponseEntity.ok(badgeListResponse);
+            } catch (Exception e) {
+                System.out.printf("badge get catch: " + e);
                 return ResponseEntity.internalServerError().build();
             }
         }

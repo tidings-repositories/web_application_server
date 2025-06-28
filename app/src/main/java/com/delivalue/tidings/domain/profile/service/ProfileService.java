@@ -5,6 +5,7 @@ import com.delivalue.tidings.domain.data.entity.MemberBadge;
 import com.delivalue.tidings.domain.data.repository.MemberBadgeRepository;
 import com.delivalue.tidings.domain.data.repository.MemberQueryRepositoryImpl;
 import com.delivalue.tidings.domain.data.repository.MemberRepository;
+import com.delivalue.tidings.domain.profile.dto.BadgeListResponse;
 import com.delivalue.tidings.domain.profile.dto.ProfileResponse;
 import com.delivalue.tidings.domain.profile.dto.ProfileUpdateRequest;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -32,6 +34,12 @@ public class ProfileService {
 
         return member != null ? new ProfileResponse(member) : null;
     }
+
+    public BadgeListResponse getBadgeListById(String internalId) {
+        List<MemberBadge> memberBadgeList = this.memberBadgeRepository.findByMemberId(internalId);
+        return new BadgeListResponse(memberBadgeList);
+    }
+
 
     public void updateProfile(ProfileUpdateRequest profileUpdateRequest) {
         if(profileUpdateRequest.getBadgeId() != null) {
