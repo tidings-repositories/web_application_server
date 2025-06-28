@@ -1,3 +1,4 @@
+badge
 admin
 root
 stellagram
