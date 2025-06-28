@@ -12,12 +12,13 @@ import java.time.LocalDateTime;
 @Builder
 public class MemberBadge {
     @Id
-    private int id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
 
     @Column(name = "member_id")
     private String memberId;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "badge_id")
     private Badge badge;
 
