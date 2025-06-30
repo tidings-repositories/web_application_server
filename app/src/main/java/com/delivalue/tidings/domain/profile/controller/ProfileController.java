@@ -2,6 +2,8 @@ package com.delivalue.tidings.domain.profile.controller;
 
 import com.delivalue.tidings.common.RequestValidator;
 import com.delivalue.tidings.common.TokenProvider;
+import com.delivalue.tidings.domain.data.repository.FollowRepository;
+import com.delivalue.tidings.domain.follow.service.FollowService;
 import com.delivalue.tidings.domain.profile.dto.BadgeListResponse;
 import com.delivalue.tidings.domain.profile.dto.ProfileResponse;
 import com.delivalue.tidings.domain.profile.dto.ProfileUpdateRequest;
@@ -11,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -18,6 +21,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ProfileController {
     private final ProfileService profileService;
+    private final FollowService followService;
     private final TokenProvider tokenProvider;
     private final RequestValidator requestValidator;
 
@@ -101,5 +105,25 @@ public class ProfileController {
         if(response != null) {
             return ResponseEntity.ok(response);
         } else return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/{publicId}/followings")
+    public ResponseEntity<List<ProfileResponse>> requestFollowingList(@PathVariable("publicId") String publicId) {
+        try {
+            List<ProfileResponse> followingList = this.followService.getFollowingList(publicId);
+            return ResponseEntity.ok(followingList);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @GetMapping("/{publicId}/followers")
+    public ResponseEntity<List<ProfileResponse>> requestFollowerList(@PathVariable("publicId") String publicId) {
+        try {
+            List<ProfileResponse> followingList = this.followService.getFollowerList(publicId);
+            return ResponseEntity.ok(followingList);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }
