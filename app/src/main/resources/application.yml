@@ -26,3 +26,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  data:
+    mongodb:
+      uri: mongodb://${MongoDB_USER}:${MongoDB_PASSWORD}@${MongoDB_URL}/${MongoDB_DATABASE}?authSource=${MongoDB_DATABASE}
