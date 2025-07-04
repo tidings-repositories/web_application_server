@@ -40,24 +40,6 @@ public class PostController {
         }
     }
 
-    @PostMapping("/{publicId}")
-    public ResponseEntity<List<PostResponse>> requestUserPostList(@PathVariable("publicId") String publicId, @RequestBody Map<String, String> body) {
-        OffsetDateTime requestCursor = body.get("createdAt") != null ? OffsetDateTime.parse((String) body.get("createdAt")) : null;
-        if(publicId == null || requestCursor == null) return ResponseEntity.badRequest().build();
-        LocalDateTime cursorTime = requestCursor.toLocalDateTime();
-
-        System.out.printf("this time is: " + cursorTime.toString());
-
-        try {
-            List<PostResponse> result = this.postService.getUserPostByCursor(publicId, cursorTime);
-
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            System.out.printf("Catch Error /post/{publicId}: " + e.getMessage());
-            return ResponseEntity.internalServerError().build();
-        }
-    }
-
     @GetMapping("/{postId}")
     public ResponseEntity<PostResponse> requestPost(@PathVariable("postId") String postId) {
         if(postId == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
@@ -106,13 +88,47 @@ public class PostController {
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
-//
-//    @PostMapping("/{postId}/like")
-//    public void requestLikePost(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("postId") String postId) {
+
+    @PostMapping("/{postId}/like")
+    public ResponseEntity<?> requestLikePost(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("postId") String postId) {
+        int TOKEN_PREFIX_LENGTH = 7;
+
+        if(postId == null) return ResponseEntity.badRequest().build();
+        if(authorizationHeader != null
+                && authorizationHeader.startsWith("Bearer ")
+                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
+            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+
+            this.postService.likePost(id, postId);
+            return ResponseEntity.ok().build();
+        }
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    @DeleteMapping("/{postId}/like")
+    public ResponseEntity<?> requestUnlikePost(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("postId") String postId) {
+        int TOKEN_PREFIX_LENGTH = 7;
+
+        if(postId == null) return ResponseEntity.badRequest().build();
+        if(authorizationHeader != null
+                && authorizationHeader.startsWith("Bearer ")
+                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
+            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+
+            this.postService.unlikePost(id, postId);
+            return ResponseEntity.ok().build();
+        }
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+//    @PostMapping("/{postId}/scrap")
+//    public void requestScrapPost(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("postId") String postId) {
 //
 //    }
 //
-//    @PostMapping("/{postId}/scrap")
+//    @PostMapping("/{postId}/report")
 //    public void requestScrapPost(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("postId") String postId) {
 //
 //    }
