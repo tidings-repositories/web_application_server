@@ -30,7 +30,7 @@ public class PostService {
     private final MongoTemplate mongoTemplate;
 
     public PostResponse getPostByPostId(String postId) {
-        Optional<Post> result =this.postRepository.findById(postId);
+        Optional<Post> result = this.postRepository.findByIdAndDeletedAtIsNull(postId);
 
         if(result.isPresent()) return new PostResponse(result.get());
         else throw new ResponseStatusException(HttpStatus.NOT_FOUND);
@@ -42,10 +42,14 @@ public class PostService {
         if(cursorId != null && cursorTime != null) {
             query.addCriteria(
                     new Criteria().orOperator(
-                            Criteria.where("createdAt").lt(cursorTime),
+                            new Criteria().andOperator(
+                                    Criteria.where("createdAt").lt(cursorTime),
+                                    Criteria.where("deletedAt").is(null)
+                            ),
                             new Criteria().andOperator(
                                     Criteria.where("createdAt").is(cursorTime),
-                                    Criteria.where("_id").lt(cursorId)
+                                    Criteria.where("_id").lt(cursorId),
+                                    Criteria.where("deletedAt").is(null)
                             )
                     )
             );
@@ -62,7 +66,8 @@ public class PostService {
         query.addCriteria(
                 new Criteria().andOperator(
                         Criteria.where("userId").is(userId),
-                        Criteria.where("createdAt").lt(cursorTime)
+                        Criteria.where("createdAt").lt(cursorTime),
+                        Criteria.where("deletedAt").is(null)
                 )
         );
 
