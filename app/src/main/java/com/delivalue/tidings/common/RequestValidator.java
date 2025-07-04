@@ -12,6 +12,10 @@ public class RequestValidator {
         return contentType.startsWith("image/") && !contentType.contains("gif");
     }
 
+    public boolean checkMediaContentType(String contentType) {
+        return contentType.startsWith("image/") || contentType.startsWith("video/");
+    }
+
     public boolean checkProfileUpdateParameter(String name, String bio, String profileImage) {
         if(name != null && name.length() > 12) return false;
         if(bio != null && bio.length() > 100) return false;
