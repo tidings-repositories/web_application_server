@@ -16,7 +16,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.net.URI;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,19 +43,17 @@ public class PostService {
 
         if(cursorId != null && cursorTime != null) {
             query.addCriteria(
-                    new Criteria().orOperator(
-                            new Criteria().andOperator(
-                                    Criteria.where("createdAt").lt(cursorTime),
-                                    Criteria.where("deletedAt").is(null)
-                            ),
-                            new Criteria().andOperator(
-                                    Criteria.where("createdAt").is(cursorTime),
-                                    Criteria.where("_id").lt(cursorId),
-                                    Criteria.where("deletedAt").is(null)
-                            )
+                new Criteria().orOperator(
+                    Criteria.where("createdAt").lt(cursorTime),
+                    new Criteria().andOperator(
+                            Criteria.where("createdAt").is(cursorTime),
+                            Criteria.where("_id").lt(cursorId)
                     )
+                )
             );
         }
+
+        query.addCriteria(Criteria.where("deletedAt").is(null));
 
         query.with(Sort.by(Sort.Direction.DESC, "createdAt", "_id"));
         query.limit(15);
@@ -64,11 +64,11 @@ public class PostService {
     public List<PostResponse> getUserPostByCursor(String userId, LocalDateTime cursorTime) {
         Query query = new Query();
         query.addCriteria(
-                new Criteria().andOperator(
-                        Criteria.where("userId").is(userId),
-                        Criteria.where("createdAt").lt(cursorTime),
-                        Criteria.where("deletedAt").is(null)
-                )
+            new Criteria().andOperator(
+                Criteria.where("userId").is(userId),
+                Criteria.where("createdAt").lt(cursorTime),
+                Criteria.where("deletedAt").is(null)
+            )
         );
 
         query.with(Sort.by(Sort.Direction.DESC, "createdAt"));
@@ -77,7 +77,7 @@ public class PostService {
         return results.stream().map(PostResponse::new).collect(Collectors.toList());
     }
 
-    public void createPost(PostCreateRequest request) {
+    public URI createPost(PostCreateRequest request) {
         Optional<Member> requestMember = this.memberRepository.findById(request.getInternalUserId());
         if(requestMember.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 
@@ -96,8 +96,10 @@ public class PostService {
         }
 
         boolean exists = this.postRepository.existsById(request.getId());
-        if(!exists) this.postRepository.save(request.toEntity());
-        else {
+        if(!exists) {
+            this.postRepository.save(request.toEntity());
+            return URI.create("/post/" + request.getId());
+        } else {
             while(true) {
                 String newID = UUID.randomUUID().toString();
                 boolean assignment = this.postRepository.existsById(newID);
@@ -105,8 +107,19 @@ public class PostService {
 
                 request.setId(newID);
                 this.postRepository.save(request.toEntity());
-                return;
+                return URI.create("/post/" + newID);
             }
         }
+    }
+
+    public void deletePost(String internalId, String postId) {
+        Optional<Post> findPost = this.postRepository.findById(postId);
+        if(findPost.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+
+        Post post = findPost.get();
+        if(!post.getInternalUserId().equals(internalId)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+
+        post.setDeletedAt(LocalDateTime.now(ZoneId.of("Asia/Seoul")));
+        this.postRepository.save(post);
     }
 }

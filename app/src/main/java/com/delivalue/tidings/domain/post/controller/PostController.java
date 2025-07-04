@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -66,7 +67,7 @@ public class PostController {
     }
 
     @PostMapping
-    public ResponseEntity<?> requestCreatePost(@RequestHeader("Authorization") String authorizationHeader, @RequestBody Post.Content body) {
+    public ResponseEntity<URI> requestCreatePost(@RequestHeader("Authorization") String authorizationHeader, @RequestBody Post.Content body) {
         int TOKEN_PREFIX_LENGTH = 7;
 
         if(authorizationHeader != null
@@ -78,21 +79,33 @@ public class PostController {
             requestDto.setInternalUserId(id);
 
             try{
-                this.postService.createPost(requestDto);
-                return ResponseEntity.ok().build();
+                URI relativeURI = this.postService.createPost(requestDto);
+                return ResponseEntity.created(relativeURI).build();
             } catch (Exception e) {
                 System.out.printf("Catch post error: " + e.getMessage());
-                return ResponseEntity.badRequest().build();
+                return ResponseEntity.internalServerError().build();
             }
         }
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 
-//    @DeleteMapping("/{postId}")
-//    public void requestDeletePost(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("postId") String postId) {
-//        //
-//    }
+    @DeleteMapping("/{postId}")
+    public ResponseEntity<?> requestDeletePost(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("postId") String postId) {
+        int TOKEN_PREFIX_LENGTH = 7;
+
+        if(postId == null) return ResponseEntity.badRequest().build();
+        if(authorizationHeader != null
+                && authorizationHeader.startsWith("Bearer ")
+                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
+            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+
+            this.postService.deletePost(id, postId);
+            return ResponseEntity.noContent().build();
+        }
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
 //
 //    @PostMapping("/{postId}/like")
 //    public void requestLikePost(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("postId") String postId) {
