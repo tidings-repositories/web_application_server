@@ -9,6 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -35,6 +37,33 @@ public class StorageController {
 
             if(presignedURL != null) return ResponseEntity.ok(Map.of("presignedUrl", presignedURL.toString()));
             else return ResponseEntity.internalServerError().build();
+        } else return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    @PostMapping("/api/upload/post")
+    public ResponseEntity<Map<String, List<String>>> getPostMediaUploadUrls(@RequestHeader("Authorization") String authorizationHeader, @RequestBody Map<String, List<String>> body) {
+        int TOKEN_PREFIX_LENGTH = 7;
+        if(authorizationHeader != null
+                && authorizationHeader.startsWith("Bearer ")
+                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
+            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+
+            try{
+                List<String> contentTypeList = body.get("content-types");
+                if(body.isEmpty() || contentTypeList.isEmpty()) return ResponseEntity.badRequest().build();
+
+                List<String> result = new ArrayList<String>();
+                for (String contentType : contentTypeList) {
+                    if(!requestValidator.checkMediaContentType(contentType)) return ResponseEntity.badRequest().build();
+
+                    URL presignedURL = storageService.getPostMediaPresignedUploadUrl(id, contentType);
+                    result.add(presignedURL.toString());
+                }
+
+                return ResponseEntity.ok(Map.of("presignedUrls", result));
+            } catch (Exception e) {
+                return ResponseEntity.badRequest().build();
+            }
         } else return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 }

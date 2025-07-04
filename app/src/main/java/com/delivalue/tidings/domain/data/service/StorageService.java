@@ -35,6 +35,17 @@ public class StorageService {
         return this.generatePresignedUploadUrl(path, contentType);
     }
 
+    public URL getPostMediaPresignedUploadUrl(String internalId, String contentType) {
+        Optional<Member> member = this.memberRepository.findById(internalId);
+        if(member.isEmpty()) return null;
+
+        String publicId = member.get().getPublicId();
+        String uuid = UUID.randomUUID().toString();
+        String path = "post/" + publicId + "/" + uuid;
+
+        return this.generatePresignedUploadUrl(path, contentType);
+    }
+
     private URL generatePresignedUploadUrl(String path, String contentType) {
         S3Presigner presigner = S3Presigner.builder()
                 .region(Region.AP_NORTHEAST_2)
