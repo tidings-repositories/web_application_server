@@ -24,12 +24,15 @@ public class Post {
     private String userName;
     private String profileImage;
     private Badge badge;
-    private LocalDateTime createdAt;
     private Content content;
     private Integer commentCount;
     private Integer likeCount;
     private Integer scrapCount;
     private boolean isOrigin;
+    private LocalDateTime createdAt;
+
+    @Field(write = Field.Write.NON_NULL)
+    private LocalDateTime deletedAt;
 
     @Field(write = Field.Write.NON_NULL)
     private String originalPostId;
