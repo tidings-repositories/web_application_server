@@ -138,8 +138,6 @@ public class ProfileController {
         if(publicId == null || requestCursor == null) return ResponseEntity.badRequest().build();
         LocalDateTime cursorTime = requestCursor.toLocalDateTime();
 
-        System.out.printf("this time is: " + cursorTime.toString());
-
         try {
             List<PostResponse> result = this.postService.getUserPostByCursor(publicId, cursorTime);
 
