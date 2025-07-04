@@ -26,14 +26,17 @@ public class FollowService {
     @Transactional
     public void addFollowUser(String followerId, String followingUserPublicId) {
         Member followingUser = this.memberRepository.findByPublicId(followingUserPublicId);
-        if(followingUser == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if(followingUser == null || followerId.equals(followingUser.getId())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 
         FollowId id = new FollowId(followingUser.getId(), followerId);
         Follow followEntity = Follow.builder().id(id).createdAt(LocalDateTime.now(ZoneId.of("Asia/Seoul"))).build();
-        this.followRepository.save(followEntity);
+        boolean exists = this.followRepository.existsById(id);
+        if(!exists) {
+            this.followRepository.save(followEntity);
 
-        this.memberRepository.increaseFollowerCount(followingUser.getId());
-        this.memberRepository.increaseFollowingCount(followerId);
+            this.memberRepository.increaseFollowerCount(followingUser.getId());
+            this.memberRepository.increaseFollowingCount(followerId);
+        }
     }
 
     @Transactional
@@ -42,10 +45,13 @@ public class FollowService {
         if(followingUser == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 
         FollowId id = new FollowId(followingUser.getId(), followerId);
-        this.followRepository.deleteById(id);
+        boolean exists = this.followRepository.existsById(id);
+        if(exists) {
+            this.followRepository.deleteById(id);
 
-        this.memberRepository.decreaseFollowerCount(followingUser.getId());
-        this.memberRepository.decreaseFollowingCount(followerId);
+            this.memberRepository.decreaseFollowerCount(followingUser.getId());
+            this.memberRepository.decreaseFollowingCount(followerId);
+        }
     }
 
     public List<ProfileResponse> getFollowingList(String publicId) {
