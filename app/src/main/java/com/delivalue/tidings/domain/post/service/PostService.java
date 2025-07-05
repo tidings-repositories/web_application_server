@@ -9,6 +9,7 @@ import com.delivalue.tidings.domain.data.repository.PostLikeRepository;
 import com.delivalue.tidings.domain.data.repository.PostRepository;
 import com.delivalue.tidings.domain.post.dto.PostCreateRequest;
 import com.delivalue.tidings.domain.post.dto.PostResponse;
+import com.mongodb.DuplicateKeyException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -99,20 +100,14 @@ public class PostService {
             request.setBadge(postBadge);
         }
 
-        boolean exists = this.postRepository.existsById(request.getId());
-        if(!exists) {
-            this.postRepository.save(request.toEntity());
+        try {
+            this.postRepository.insert(request.toEntity());
             return URI.create("/post/" + request.getId());
-        } else {
-            while(true) {
-                String newID = UUID.randomUUID().toString();
-                boolean assignment = this.postRepository.existsById(newID);
-                if(!assignment) continue;
-
-                request.setId(newID);
-                this.postRepository.save(request.toEntity());
-                return URI.create("/post/" + newID);
-            }
+        } catch (DuplicateKeyException e) {
+            String newID = UUID.randomUUID().toString();
+            request.setId(newID);
+            this.postRepository.insert(request.toEntity());
+            return URI.create("/post/" + newID);
         }
     }
 
@@ -123,8 +118,27 @@ public class PostService {
         Post post = findPost.get();
         if(!post.getInternalUserId().equals(internalId)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
 
-        post.setDeletedAt(LocalDateTime.now(ZoneId.of("Asia/Seoul")));
-        this.postRepository.save(post);
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
+
+        Query query = Query.query(Criteria.where("_id").is(postId));
+        Update update = new Update().set("deletedAt", now);
+        this.mongoTemplate.updateFirst(query, update, Post.class);
+
+        //Spread deleted 설정
+        Query deleteSpreadQuery = Query.query(Criteria.where("originalPostId").is(post.getOriginalPostId()));
+        this.mongoTemplate.updateMulti(deleteSpreadQuery, update, Post.class);
+
+        if(!post.isOrigin()) {
+            try {
+                Query scrapDecreaseQuery = Query.query(Criteria.where("_id").is(post.getOriginalPostId()));
+                Update scrapDecreaseUpdate = new Update().inc("scrapCount", -1);
+                this.mongoTemplate.updateFirst(scrapDecreaseQuery, scrapDecreaseUpdate, Post.class);
+            } catch (Exception e) {
+                Update compenstateUpdate = new Update().set("deletedAt", null);
+                this.mongoTemplate.updateFirst(query, compenstateUpdate, Post.class);
+                throw e;
+            }
+        }
     }
 
     public void likePost(String internalId, String postId) {
@@ -148,7 +162,7 @@ public class PostService {
                 .postCreatedAt(post.getCreatedAt())
                 .likeAt(LocalDateTime.now(ZoneId.of("Asia/Seoul"))).build();
 
-        this.postLikeRepository.save(newLikeEntity);
+        this.postLikeRepository.insert(newLikeEntity);
 
         try {
             //Increase Post document like count
@@ -157,6 +171,7 @@ public class PostService {
             this.mongoTemplate.updateFirst(query, update, Post.class);
         } catch (Exception e) {
             this.postLikeRepository.delete(newLikeEntity);
+            throw e;
         }
     }
 
@@ -179,6 +194,7 @@ public class PostService {
             this.mongoTemplate.updateFirst(query, update, Post.class);
         } catch (Exception e) {
             this.postLikeRepository.save(likeEntity);
+            throw e;
         }
     }
 
@@ -206,5 +222,79 @@ public class PostService {
         List<Post> likePostList = this.postRepository.findByIdInAndDeletedAtIsNull(postIdList);
 
         return likePostList.stream().map(PostResponse::new).collect(Collectors.toList());
+    }
+
+    public URI scrapPost(String internalId, String postId) {
+        //멤버 존재하는지 확인
+        Optional<Member> requestMember = this.memberRepository.findById(internalId);
+        if(requestMember.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        Member member = requestMember.get();
+
+        //포스트가 존재하는지 확인
+        Optional<Post> targetPost = this.postRepository.findByIdAndDeletedAtIsNull(postId);
+        if(targetPost.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        Post post = targetPost.get();
+
+        //동일한 포스트를 이미 스크랩했는지 확인
+        Optional<Post> existScrap = this.postRepository.findByOriginalPostIdAndInternalUserId(
+                post.isOrigin() ? postId : post.getOriginalPostId(),
+                internalId
+        );
+        if(existScrap.isPresent()) {
+            Post presentScrap = existScrap.get();
+            if(presentScrap.getDeletedAt() == null)
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+
+            //만약 스크랩 이력이 있지만, 삭제했었다면 삭제 취소
+            presentScrap.setDeletedAt(null);
+            this.postRepository.save(presentScrap);
+
+            try {
+                Query query = Query.query(Criteria.where("_id").is(presentScrap.getOriginalPostId()));
+                Update update = new Update().inc("scrapCount", 1);
+                this.mongoTemplate.updateFirst(query, update, Post.class);
+            } catch (Exception e) {
+                presentScrap.setDeletedAt(LocalDateTime.now(ZoneId.of("Asia/Seoul")));
+                this.postRepository.save(presentScrap);
+                throw e;
+            }
+
+            return URI.create("/post/" + presentScrap.getId());
+        }
+
+        //포스트 주인이 자신의 포스트를 스크랩하려는지 확인
+        if(internalId.equals(post.getInternalUserId()) || member.getPublicId().equals(post.getOriginalUserId()))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+
+        //스크랩 데이터 초기화
+        if(post.isOrigin()) {
+            post.setOriginalPostId(post.getId());
+            post.setOriginalUserId(post.getUserId());
+            post.setOrigin(false);
+        }
+        post.setInternalUserId(internalId);
+        post.setUserId(member.getPublicId());
+        post.setId(UUID.randomUUID().toString());
+        post.setCommentCount(0);
+
+        //저장
+        try {
+            this.postRepository.insert(post);
+        } catch (DuplicateKeyException e) {
+            String newID = UUID.randomUUID().toString();
+            post.setId(newID);
+            this.postRepository.insert(post);
+        }
+
+        try {
+            //Increase Post document scrap count
+            Query query = Query.query(Criteria.where("_id").is(post.getOriginalPostId()));
+            Update update = new Update().inc("scrapCount", 1);
+            this.mongoTemplate.updateFirst(query, update, Post.class);
+            return URI.create("/post/" + post.getId());
+        } catch (Exception e) {
+            this.postRepository.delete(post);
+            throw e;
+        }
     }
 }
