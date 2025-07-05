@@ -1,12 +1,10 @@
 package com.delivalue.tidings.domain.post.service;
 
-import com.delivalue.tidings.domain.data.entity.Badge;
-import com.delivalue.tidings.domain.data.entity.Like;
-import com.delivalue.tidings.domain.data.entity.Member;
-import com.delivalue.tidings.domain.data.entity.Post;
+import com.delivalue.tidings.domain.data.entity.*;
 import com.delivalue.tidings.domain.data.repository.MemberRepository;
 import com.delivalue.tidings.domain.data.repository.PostLikeRepository;
 import com.delivalue.tidings.domain.data.repository.PostRepository;
+import com.delivalue.tidings.domain.data.repository.ReportRepository;
 import com.delivalue.tidings.domain.post.dto.PostCreateRequest;
 import com.delivalue.tidings.domain.post.dto.PostResponse;
 import com.mongodb.DuplicateKeyException;
@@ -35,6 +33,7 @@ public class PostService {
     private final MemberRepository memberRepository;
     private final MongoTemplate mongoTemplate;
     private final PostLikeRepository postLikeRepository;
+    private final ReportRepository reportRepository;
 
     public PostResponse getPostByPostId(String postId) {
         Optional<Post> result = this.postRepository.findByIdAndDeletedAtIsNull(postId);
@@ -296,5 +295,15 @@ public class PostService {
             this.postRepository.delete(post);
             throw e;
         }
+    }
+
+    public void reportPost(String internalId, String postId) {
+        Report report = Report.builder()
+                .targetType("post")
+                .targetId(postId)
+                .reportUser(internalId)
+                .reportAt(LocalDateTime.now(ZoneId.of("Asia/Seoul"))).build();
+
+        this.reportRepository.insert(report);
     }
 }

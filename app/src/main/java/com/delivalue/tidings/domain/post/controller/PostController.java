@@ -139,9 +139,21 @@ public class PostController {
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
-//
-//    @PostMapping("/{postId}/report")
-//    public void requestScrapPost(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("postId") String postId) {
-//
-//    }
+
+    @PostMapping("/{postId}/report")
+    public ResponseEntity<?> requestReportPost(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("postId") String postId) {
+        int TOKEN_PREFIX_LENGTH = 7;
+
+        if(postId == null) return ResponseEntity.badRequest().build();
+        if(authorizationHeader != null
+                && authorizationHeader.startsWith("Bearer ")
+                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
+            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+
+            this.postService.reportPost(id, postId);
+            return ResponseEntity.ok().build();
+        }
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
 }
