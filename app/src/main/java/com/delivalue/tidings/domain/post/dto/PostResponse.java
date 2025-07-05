@@ -19,7 +19,7 @@ public class PostResponse {
     private final Integer comment_count;
     private final Integer like_count;
     private final Integer scrap_count;
-    private final boolean is_origin;
+    private final boolean isOrigin;
 
     //Required when isOrigin false
     private final String original_post_id;
@@ -36,9 +36,9 @@ public class PostResponse {
         this.comment_count = post.getCommentCount();
         this.like_count = post.getLikeCount();
         this.scrap_count = post.getScrapCount();
-        this.is_origin = post.isOrigin();
+        this.isOrigin = post.isOrigin();
         this.original_post_id = post.getOriginalPostId();
-        this.original_user_id = post.getOriginalPostId();
+        this.original_user_id = post.getOriginalUserId();
     }
 
     @Getter
