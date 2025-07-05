@@ -121,14 +121,14 @@ public class PostService {
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
 
         Query query = Query.query(Criteria.where("_id").is(postId));
-        Update update = new Update().set("deletedAt", now);
+        Update update = new Update().set("deletedAt", now).set("scrapCount", 0);
         this.mongoTemplate.updateFirst(query, update, Post.class);
 
-        //Spread deleted 설정
-        Query deleteSpreadQuery = Query.query(Criteria.where("originalPostId").is(post.getOriginalPostId()));
-        this.mongoTemplate.updateMulti(deleteSpreadQuery, update, Post.class);
-
-        if(!post.isOrigin()) {
+        if(post.isOrigin() && post.getScrapCount() > 0) {
+            //Spread deleted 설정
+            Query deleteSpreadQuery = Query.query(Criteria.where("originalPostId").is(post.getId()));
+            this.mongoTemplate.updateMulti(deleteSpreadQuery, update, Post.class);
+        } else if(!post.isOrigin()) {
             try {
                 Query scrapDecreaseQuery = Query.query(Criteria.where("_id").is(post.getOriginalPostId()));
                 Update scrapDecreaseUpdate = new Update().inc("scrapCount", -1);
