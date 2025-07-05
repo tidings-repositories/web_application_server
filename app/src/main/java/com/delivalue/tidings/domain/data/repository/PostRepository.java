@@ -12,4 +12,6 @@ public interface PostRepository extends MongoRepository<Post, String> {
     Optional<Post> findByIdAndDeletedAtIsNull(String id);
 
     List<Post> findByIdInAndDeletedAtIsNull(List<String> ids);
+
+    Optional<Post> findByOriginalPostIdAndInternalUserId(String postId, String id);
 }
