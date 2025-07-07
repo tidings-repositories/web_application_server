@@ -2,7 +2,8 @@ package com.delivalue.tidings.domain.profile.controller;
 
 import com.delivalue.tidings.common.RequestValidator;
 import com.delivalue.tidings.common.TokenProvider;
-import com.delivalue.tidings.domain.data.repository.FollowRepository;
+import com.delivalue.tidings.domain.comment.dto.CommentResponse;
+import com.delivalue.tidings.domain.comment.service.CommentService;
 import com.delivalue.tidings.domain.follow.service.FollowService;
 import com.delivalue.tidings.domain.post.dto.PostResponse;
 import com.delivalue.tidings.domain.post.service.PostService;
@@ -27,6 +28,7 @@ public class ProfileController {
     private final ProfileService profileService;
     private final FollowService followService;
     private final PostService postService;
+    private final CommentService commentService;
     private final TokenProvider tokenProvider;
     private final RequestValidator requestValidator;
 
@@ -143,7 +145,21 @@ public class ProfileController {
 
             return ResponseEntity.ok(result);
         } catch (Exception e) {
-            System.out.printf("Catch Error /post/{publicId}: " + e.getMessage());
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @PostMapping("/{publicId}/comments")
+    public ResponseEntity<List<CommentResponse>> requestUserCommentList(@PathVariable("publicId") String publicId, @RequestBody Map<String, String> body) {
+        OffsetDateTime requestCursor = body.get("createdAt") != null ? OffsetDateTime.parse((String) body.get("createdAt")) : null;
+        if(publicId == null || requestCursor == null) return ResponseEntity.badRequest().build();
+        LocalDateTime cursorTime = requestCursor.toLocalDateTime();
+
+        try {
+            List<CommentResponse> result = this.commentService.getUserCommentByCursor(publicId, cursorTime);
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
     }
