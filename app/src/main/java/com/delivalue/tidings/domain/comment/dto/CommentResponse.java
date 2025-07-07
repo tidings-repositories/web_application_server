@@ -20,6 +20,7 @@ public class CommentResponse {
     private Comment.Badge badge;
     private LocalDateTime create_at;
 
+    private boolean isDeleted;
     private boolean isRoot;
     private List<CommentResponse> reply;
 
@@ -36,8 +37,9 @@ public class CommentResponse {
         if(comment.isRoot()) this.reply = new ArrayList<CommentResponse>();
 
         if(comment.getDeletedAt() != null) {
+            this.isDeleted = true;
             this.user_name = "";
-            this.text = "삭제된 코멘트입니다.";
+            this.text = "삭제된 코멘트입니다";
             this.profile_image = "https://cdn.stellagram.kr/public/defaultProfile.png";
             this.badge = null;
         }
