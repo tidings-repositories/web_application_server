@@ -71,25 +71,37 @@ public class CommentController {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 
-//    @DeleteMapping("/{commentId}")
-//    public ResponseEntity<?> requestDeleteComment(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("commentId") String commentId) {
-//        int TOKEN_PREFIX_LENGTH = 7;
-//
-//        if(commentId == null) return ResponseEntity.badRequest().build();
-//        if(authorizationHeader != null
-//                && authorizationHeader.startsWith("Bearer ")
-//                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
-//            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
-//
-//            this.commentService.deleteComment(id, commentId);
-//            return ResponseEntity.noContent().build();
-//        }
-//
-//        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-//    }
+    @DeleteMapping("/{commentId}")
+    public ResponseEntity<?> requestDeleteComment(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("commentId") String commentId) {
+        int TOKEN_PREFIX_LENGTH = 7;
 
-//    @PostMapping("/{commentId}/report")
-//    public ResponseEntity<?> requestReportComment(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("commentId") String commentId) {
-//
-//    }
+        if(commentId == null) return ResponseEntity.badRequest().build();
+        if(authorizationHeader != null
+                && authorizationHeader.startsWith("Bearer ")
+                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
+            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+
+            this.commentService.deleteComment(id, commentId);
+            return ResponseEntity.noContent().build();
+        }
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    @PostMapping("/{commentId}/report")
+    public ResponseEntity<?> requestReportComment(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("commentId") String commentId) {
+        int TOKEN_PREFIX_LENGTH = 7;
+
+        if(commentId == null) return ResponseEntity.badRequest().build();
+        if(authorizationHeader != null
+                && authorizationHeader.startsWith("Bearer ")
+                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
+            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+
+            this.commentService.reportComment(id, commentId);
+            return ResponseEntity.ok().build();
+        }
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
 }
