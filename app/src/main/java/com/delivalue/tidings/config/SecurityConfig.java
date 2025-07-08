@@ -24,6 +24,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests((requests) -> requests
                         .requestMatchers("/oauth2/authorization/**").authenticated()
                         .requestMatchers("/auth/refresh").permitAll()
+                        .requestMatchers("/auth/account").permitAll()
                         .requestMatchers("/auth/**").authenticated()
                         .anyRequest().permitAll()
                 )

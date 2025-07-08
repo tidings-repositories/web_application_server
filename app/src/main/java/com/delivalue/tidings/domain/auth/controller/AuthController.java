@@ -101,4 +101,21 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response.build());
         }
     }
+
+    @DeleteMapping("/account")
+    public ResponseEntity<?> delete(@RequestHeader("Authorization") String authorizationHeader) {
+        int TOKEN_PREFIX_LENGTH = 7;
+
+        if(authorizationHeader != null
+                && authorizationHeader.startsWith("Bearer ")
+                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
+            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+
+            this.authService.deleteMember(id);
+            return ResponseEntity.ok().build();
+        }
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
 }

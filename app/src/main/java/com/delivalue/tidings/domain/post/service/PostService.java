@@ -66,6 +66,10 @@ public class PostService {
     }
 
     public List<PostResponse> getUserPostByCursor(String userId, LocalDateTime cursorTime) {
+        Member member = this.memberRepository.findByPublicId(userId);
+        if(member == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if(member.getDeletedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
+
         Query query = new Query();
         query.addCriteria(
             new Criteria().andOperator(
@@ -108,6 +112,11 @@ public class PostService {
             this.postRepository.insert(request.toEntity());
             return URI.create("/post/" + newID);
         }
+
+        //TODO: 이후 Worker server로 기능 이동
+        //TODO: 작성자의 팔로워가 1000명 이하라면 feeds 컬렉션에 생성
+        //int expirationTime = 3600 * 24 * 7;
+        //Date(System.currentTimeMillis() + expirationTime * 1000L)
     }
 
     public void deletePost(String internalId, String postId) {
@@ -198,6 +207,10 @@ public class PostService {
     }
 
     public List<PostResponse> getUserLikePostByCursor(String userId, LocalDateTime cursorTime, String cursorId) {
+        Member member = this.memberRepository.findByPublicId(userId);
+        if(member == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if(member.getDeletedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
+
         Query query = new Query();
         query.addCriteria(Criteria.where("likeUserId").is(userId));
 

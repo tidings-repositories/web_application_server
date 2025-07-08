@@ -43,8 +43,7 @@ public class ProfileController {
 
             ProfileResponse response = this.profileService.getProfileById(id);
 
-            if(response != null) return ResponseEntity.ok(response);
-            else return ResponseEntity.notFound().build();
+            return ResponseEntity.ok(response);
         }
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -109,9 +108,7 @@ public class ProfileController {
     public ResponseEntity<ProfileResponse> requestProfile(@PathVariable("publicId") String publicId) {
         ProfileResponse response = this.profileService.getProfileByPublicId(publicId);
 
-        if(response != null) {
-            return ResponseEntity.ok(response);
-        } else return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{publicId}/followings")
@@ -140,13 +137,8 @@ public class ProfileController {
         if(publicId == null || requestCursor == null) return ResponseEntity.badRequest().build();
         LocalDateTime cursorTime = requestCursor.toLocalDateTime();
 
-        try {
-            List<PostResponse> result = this.postService.getUserPostByCursor(publicId, cursorTime);
-
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
-        }
+        List<PostResponse> result = this.postService.getUserPostByCursor(publicId, cursorTime);
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/{publicId}/comments")
@@ -155,13 +147,8 @@ public class ProfileController {
         if(publicId == null || requestCursor == null) return ResponseEntity.badRequest().build();
         LocalDateTime cursorTime = requestCursor.toLocalDateTime();
 
-        try {
-            List<CommentResponse> result = this.commentService.getUserCommentByCursor(publicId, cursorTime);
-
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
-        }
+        List<CommentResponse> result = this.commentService.getUserCommentByCursor(publicId, cursorTime);
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/{publicId}/likes")

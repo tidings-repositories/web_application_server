@@ -53,6 +53,10 @@ public class CommentService {
     }
 
     public List<CommentResponse> getUserCommentByCursor(String userId, LocalDateTime cursorTime) {
+        Member member = this.memberRepository.findByPublicId(userId);
+        if(member == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if(member.getDeletedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
+
         Query query = new Query();
         query.addCriteria(
                 new Criteria().andOperator(

@@ -24,15 +24,21 @@ public class ProfileService {
     private final MemberBadgeRepository memberBadgeRepository;
 
     public ProfileResponse getProfileById(String internalId) {
-        Optional<Member> member = this.memberRepository.findById(internalId);
+        Optional<Member> resultMember = this.memberRepository.findById(internalId);
+        if(resultMember.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
 
-        return member.isPresent() ? new ProfileResponse(member.get()) : null;
+        Member member = resultMember.get();
+        if(member.getDeletedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
+
+        return new ProfileResponse(member);
     }
 
     public ProfileResponse getProfileByPublicId(String publicId) {
         Member member = this.memberRepository.findByPublicId(publicId);
+        if(member == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if(member.getDeletedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
 
-        return member != null ? new ProfileResponse(member) : null;
+        return new ProfileResponse(member);
     }
 
     public BadgeListResponse getBadgeListById(String internalId) {
@@ -48,5 +54,11 @@ public class ProfileService {
         }
 
         this.memberQueryRepository.updateMemberProfile(profileUpdateRequest);
+
+        //TODO: 이후 Worker server로 기능 이동
+        //TODO: `이름` 또는 `프로필 사진` 또는 `뱃지` 변경 시 자신의 포스트 및 코멘트들 내용도 함께 변경
+        // 1. 포스트의 internalId가 자신이면서 isOrigin == true일 때 deletedAt이 null인 경우,
+        // 2. 포스트의 isOrigin이 false인데 originPostId가 삭제되지 않았고 originalUserId (publicId)가 자신일 때 (deletedAt 여부 상관 x)
+        // 3. 코멘트의 internalId가 자신이면서 deletedAt이 null인 경우,
     }
 }

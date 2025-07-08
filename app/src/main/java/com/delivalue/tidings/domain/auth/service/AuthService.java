@@ -12,8 +12,10 @@ import com.delivalue.tidings.domain.data.repository.FollowRepository;
 import com.delivalue.tidings.domain.data.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -32,7 +34,7 @@ public class AuthService {
     public boolean checkUserExist(String id) {
         Optional<Member> member = this.memberRepository.findById(id);
 
-        return member.isPresent();
+        return member.isPresent() && member.get().getDeletedAt() == null;
     }
 
     public PublicIdValidateResponse checkPublicIdUsable(String publicId) {
@@ -58,14 +60,22 @@ public class AuthService {
     public LoginResponse registerMember(RegisterRequest newMemberData) {
 
         try {
-            Member memberEntity = newMemberData.toEntity();
-            this.memberRepository.save(memberEntity);
+            Optional<Member> existMember = this.memberRepository.findById(newMemberData.getInternalId());
 
-            Follow followEntity = new Follow(
-                    new FollowId(this.STELLAGRAM_OFFICIAL_ID, newMemberData.getInternalId()),
-                    LocalDateTime.now(ZoneId.of("Asia/Seoul")));
-            this.followRepository.save(followEntity);
-            this.memberRepository.increaseFollowerCount(this.STELLAGRAM_OFFICIAL_ID);
+            if(existMember.isPresent()) {
+                Member member = existMember.get();
+                member.setDeletedAt(null);
+                this.memberRepository.save(member);
+            } else {
+                Member memberEntity = newMemberData.toEntity();
+                this.memberRepository.save(memberEntity);
+
+                Follow followEntity = new Follow(
+                        new FollowId(this.STELLAGRAM_OFFICIAL_ID, newMemberData.getInternalId()),
+                        LocalDateTime.now(ZoneId.of("Asia/Seoul")));
+                this.followRepository.save(followEntity);
+                this.memberRepository.increaseFollowerCount(this.STELLAGRAM_OFFICIAL_ID);
+            }
 
             return LoginResponse.builder()
                     .result("login")
@@ -79,5 +89,18 @@ public class AuthService {
                     .refreshToken(null)
                     .accessToken(null).build();
         }
+    }
+
+    @Transactional
+    public void deleteMember(String internalId) {
+        Optional<Member> deleteMember = this.memberRepository.findById(internalId);
+        if(deleteMember.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+
+        Member member = deleteMember.get();
+        if(!internalId.equals(member.getId())) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if(member.getDeletedAt() != null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+
+        member.setDeletedAt(LocalDateTime.now(ZoneId.of("Asia/Seoul")));
+        this.memberRepository.save(member);
     }
 }
