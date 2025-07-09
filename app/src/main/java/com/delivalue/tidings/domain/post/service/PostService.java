@@ -1,10 +1,7 @@
 package com.delivalue.tidings.domain.post.service;
 
 import com.delivalue.tidings.domain.data.entity.*;
-import com.delivalue.tidings.domain.data.repository.MemberRepository;
-import com.delivalue.tidings.domain.data.repository.PostLikeRepository;
-import com.delivalue.tidings.domain.data.repository.PostRepository;
-import com.delivalue.tidings.domain.data.repository.ReportRepository;
+import com.delivalue.tidings.domain.data.repository.*;
 import com.delivalue.tidings.domain.post.dto.PostCreateRequest;
 import com.delivalue.tidings.domain.post.dto.PostResponse;
 import com.mongodb.DuplicateKeyException;
@@ -21,6 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,6 +32,8 @@ public class PostService {
     private final MongoTemplate mongoTemplate;
     private final PostLikeRepository postLikeRepository;
     private final ReportRepository reportRepository;
+    private final FollowRepository followRepository;
+    private final FeedRepository feedRepository;
 
     public PostResponse getPostByPostId(String postId) {
         Optional<Post> result = this.postRepository.findByIdAndDeletedAtIsNull(postId);
@@ -63,6 +63,30 @@ public class PostService {
         query.limit(15);
         List<Post> results = this.mongoTemplate.find(query, Post.class);
         return results.stream().map(PostResponse::new).collect(Collectors.toList());
+    }
+
+    public List<PostResponse> getFeedPostByCursor(String internalId, String cursorId, LocalDateTime cursorTime) {
+        Query query = new Query();
+        query.addCriteria(Criteria.where("internalUserId").is(internalId));
+
+        if(cursorId != null && cursorTime != null) {
+            query.addCriteria(
+                new Criteria().orOperator(
+                    Criteria.where("createdAt").lt(cursorTime),
+                    new Criteria().andOperator(
+                            Criteria.where("createdAt").is(cursorTime),
+                            Criteria.where("postId").lt(cursorId)
+                    )
+                )
+            );
+        }
+        query.with(Sort.by(Sort.Direction.DESC, "createdAt", "postId"));
+        query.limit(15);
+
+        List<String> feedList = this.mongoTemplate.find(query, Feed.class).stream().map(Feed::getPostId).toList();
+        List<Post> feedPostList = this.postRepository.findByIdInAndDeletedAtIsNull(feedList);
+
+        return feedPostList.stream().map(PostResponse::new).collect(Collectors.toList());
     }
 
     public List<PostResponse> getUserPostByCursor(String userId, LocalDateTime cursorTime) {
@@ -105,18 +129,32 @@ public class PostService {
 
         try {
             this.postRepository.insert(request.toEntity());
-            return URI.create("/post/" + request.getId());
         } catch (DuplicateKeyException e) {
             String newID = UUID.randomUUID().toString();
             request.setId(newID);
             this.postRepository.insert(request.toEntity());
-            return URI.create("/post/" + newID);
         }
 
         //TODO: 이후 Worker server로 기능 이동
-        //TODO: 작성자의 팔로워가 1000명 이하라면 feeds 컬렉션에 생성
-        //int expirationTime = 3600 * 24 * 7;
-        //Date(System.currentTimeMillis() + expirationTime * 1000L)
+        try{
+            int expirationTime = 3600 * 24 * 7;
+            Date expiredAt = new Date(System.currentTimeMillis() + expirationTime * 1000L);
+
+            List<Member> followers = this.followRepository.findFollowerMemberById(member.getId());
+            List<Feed> feeds = followers.stream().map(
+                    thisFollower -> Feed.builder()
+                            .internalUserId(thisFollower.getId())
+                            .postId(request.getId())
+                            .createdAt(request.getCreatedAt())
+                            .expiredAt(expiredAt).build()
+            ).toList();
+
+            this.feedRepository.insert(feeds);
+
+            return URI.create("/post/" + request.getId());
+        } catch (Exception e) {
+            return URI.create("/post/" + request.getId());
+        }
     }
 
     public void deletePost(String internalId, String postId) {

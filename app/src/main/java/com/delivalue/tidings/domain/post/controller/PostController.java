@@ -40,6 +40,26 @@ public class PostController {
         }
     }
 
+    @PostMapping("/feed")
+    public ResponseEntity<List<PostResponse>> requestFeedPostList(@RequestHeader("Authorization") String authorizationHeader, @RequestBody Map<String, String> body) {
+        int TOKEN_PREFIX_LENGTH = 7;
+
+        if(authorizationHeader != null
+                && authorizationHeader.startsWith("Bearer ")
+                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
+            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+
+            String cursorId = (String) body.get("postId");
+            OffsetDateTime requestCursor = body.get("createdAt") != null ? OffsetDateTime.parse((String) body.get("createdAt")) : null;
+            LocalDateTime cursorTime = requestCursor != null ? requestCursor.toLocalDateTime() : null;
+
+            List<PostResponse> result = this.postService.getFeedPostByCursor(id, cursorId, cursorTime);
+            return ResponseEntity.ok(result);
+        }
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
     @GetMapping("/{postId}")
     public ResponseEntity<PostResponse> requestPost(@PathVariable("postId") String postId) {
         if(postId == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
