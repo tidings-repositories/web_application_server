@@ -51,11 +51,14 @@ public class CouponService {
         Optional<Coupon> findCoupon = this.couponRepository.findById(couponNumber);
         if(findCoupon.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
 
+        Coupon coupon = findCoupon.get();
+
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
+        if(coupon.getIssuedAt().isAfter(now) || coupon.getExpiredAt().isBefore(now)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+
         CouponLogId logId = new CouponLogId(internalId, couponNumber);
         Optional<CouponLog> findLog = this.logRepository.findById(logId);
         if(findLog.isPresent()) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-
-        Coupon coupon = findCoupon.get();
 
         switch(coupon.getType()) {
             case "badge":
