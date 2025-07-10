@@ -62,16 +62,20 @@ public class ProfileService {
         if(profileUpdateRequest.getProfileImage() != null) spreadUpdate.set("profileImage", profileUpdateRequest.getProfileImage());
         if(profileUpdateRequest.getUserName() != null) spreadUpdate.set("userName", profileUpdateRequest.getUserName());
         if(profileUpdateRequest.getBadgeId() != null) {
-            MemberBadge memberBadge = this.memberBadgeRepository.findByMemberIdAndBadge_Id(profileUpdateRequest.getId(), profileUpdateRequest.getBadgeId());
-            if(memberBadge == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+            if (profileUpdateRequest.getBadgeId() == 0) {
+                spreadUpdate.set("badge", null);
+            } else {
+                MemberBadge memberBadge = this.memberBadgeRepository.findByMemberIdAndBadge_Id(profileUpdateRequest.getId(), profileUpdateRequest.getBadgeId());
+                if(memberBadge == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 
-            Map<String, Object> badge = new HashMap<>();
-            Badge expectBadge = memberBadge.getBadge();
-            badge.put("id", expectBadge.getId());
-            badge.put("name", expectBadge.getName());
-            badge.put("url", expectBadge.getUrl());
+                Map<String, Object> badge = new HashMap<>();
+                Badge expectBadge = memberBadge.getBadge();
+                badge.put("id", expectBadge.getId());
+                badge.put("name", expectBadge.getName());
+                badge.put("url", expectBadge.getUrl());
 
-            spreadUpdate.set("badge", badge);
+                spreadUpdate.set("badge", badge);
+            }
         }
 
         this.memberQueryRepository.updateMemberProfile(profileUpdateRequest);
