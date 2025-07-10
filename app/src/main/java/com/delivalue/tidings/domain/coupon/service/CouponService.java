@@ -27,7 +27,6 @@ public class CouponService {
     private final BadgeRepository badgeRepository;
     private final MemberBadgeRepository memberBadgeRepository;
 
-    @Transactional
     private void useBadgeCoupon(String internalId, Coupon coupon, CouponLogId logId) {
         Integer badgeId = Integer.parseInt(coupon.getReward());
         Optional<Badge> findBadge = this.badgeRepository.findById(badgeId);
@@ -47,6 +46,7 @@ public class CouponService {
         this.logRepository.save(couponLog);
     }
 
+    @Transactional
     public void useCoupon(String internalId, String couponNumber) {
         Optional<Coupon> findCoupon = this.couponRepository.findById(couponNumber);
         if(findCoupon.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
