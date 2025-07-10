@@ -38,7 +38,8 @@ public class MemberQueryRepositoryImpl implements MemberQueryRepository{
         }
 
         if(request.getBadgeId() != null) {
-            update.set(qMember.badge.id, request.getBadgeId());
+            if(request.getBadgeId() == 0) update.set(qMember.badge.id, (Integer) null);
+            else update.set(qMember.badge.id, request.getBadgeId());
             hasUpdate = true;
         }
 
