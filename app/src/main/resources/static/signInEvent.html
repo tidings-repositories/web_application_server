@@ -8,11 +8,16 @@
       const data = await res.json();
 
       if (window.opener) {
-        const origins = ['https://stellagram.kr', 'https://www.stellagram.kr', 'localhost:5173'];
-        origins.forEach((origin) => {
-          window.opener.postMessage(data, origin);
-        })
-        window.close();
+        const origins = ['https://stellagram.kr', 'https://www.stellagram.kr'];
+        try {
+          origins.forEach((origin) => {
+            window.opener.postMessage(data, origin);
+          })
+          window.close();
+        } catch(e) {}
+        finally {
+          window.close();
+        }
       } else {
         console.warn('No origin page');
       }
