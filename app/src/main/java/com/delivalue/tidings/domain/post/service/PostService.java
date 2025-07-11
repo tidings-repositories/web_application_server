@@ -341,10 +341,31 @@ public class PostService {
             Query query = Query.query(Criteria.where("_id").is(post.getOriginalPostId()));
             Update update = new Update().inc("scrapCount", 1);
             this.mongoTemplate.updateFirst(query, update, Post.class);
-            return URI.create("/post/" + post.getId());
         } catch (Exception e) {
             this.postRepository.delete(post);
             throw e;
+        }
+
+        //TODO: 이후 Worker server로 기능 이동
+        //스크랩한 포스트도 피드에 반영
+        try{
+            int expirationTime = 3600 * 24 * 7;
+            Date expiredAt = new Date(System.currentTimeMillis() + expirationTime * 1000L);
+
+            List<Member> followers = this.followRepository.findFollowerMemberById(member.getId());
+            List<Feed> feeds = followers.stream().map(
+                    thisFollower -> Feed.builder()
+                            .internalUserId(thisFollower.getId())
+                            .postId(post.getId())
+                            .createdAt(post.getCreatedAt())
+                            .expiredAt(expiredAt).build()
+            ).toList();
+
+            this.feedRepository.insert(feeds);
+
+            return URI.create("/post/" + post.getId());
+        } catch (Exception e) {
+            return URI.create("/post/" + post.getId());
         }
     }
 
