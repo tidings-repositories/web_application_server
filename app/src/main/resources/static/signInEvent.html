@@ -8,7 +8,10 @@
       const data = await res.json();
 
       if (window.opener) {
-        window.opener.postMessage(data, 'http://localhost:5173');
+        const origins = ['https://stellagram.kr', 'https://www.stellagram.kr', 'localhost:5173'];
+        origins.forEach((origin) => {
+          window.opener.postMessage(data, origin);
+        })
         window.close();
       } else {
         console.warn('No origin page');
