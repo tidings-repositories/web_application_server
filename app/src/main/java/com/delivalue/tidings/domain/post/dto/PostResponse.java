@@ -2,12 +2,14 @@ package com.delivalue.tidings.domain.post.dto;
 
 import com.delivalue.tidings.domain.data.entity.Post;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Getter
+@Setter
 public class PostResponse {
     private final String post_id;
     private final String user_id;
@@ -25,6 +27,9 @@ public class PostResponse {
     private final String original_post_id;
     private final String original_user_id;
 
+    //Required when like pose response
+    private LocalDateTime like_at;
+    
     public PostResponse(Post post) {
         this.post_id = post.getId();
         this.user_id = post.getUserId();
