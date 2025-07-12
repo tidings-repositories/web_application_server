@@ -260,23 +260,30 @@ public class PostService {
         if(cursorId != null) {
             query.addCriteria(
                     new Criteria().orOperator(
-                            Criteria.where("postCreatedAt").lt(cursorTime),
+                            Criteria.where("likeAt").lt(cursorTime),
                             new Criteria().andOperator(
-                                    Criteria.where("postCreatedAt").is(cursorTime),
+                                    Criteria.where("likeAt").is(cursorTime),
                                     Criteria.where("postId").lt(cursorId)
                             )
                     )
             );
         }
 
-        query.with(Sort.by(Sort.Direction.DESC, "postCreatedAt"));
+        query.with(Sort.by(Sort.Direction.DESC, "likeAt"));
         query.limit(15);
 
         List<Like> likeList = this.mongoTemplate.find(query, Like.class);
         List<String> postIdList = likeList.stream().map(Like::getPostId).toList();
-        List<Post> likePostList = this.postRepository.findByIdInAndDeletedAtIsNull(postIdList);
 
-        return likePostList.stream().map(PostResponse::new).collect(Collectors.toList());
+        Map<String, Post> likePostMap = this.postRepository.findByIdInAndDeletedAtIsNull(postIdList).stream()
+                .collect(Collectors.toMap(Post::getId, Function.identity()));
+
+        List<Post> likePostList = postIdList.stream()
+            .map(likePostMap::get)
+            .filter(Objects::nonNull)
+            .toList();
+
+        return likePostList.stream().map(PostResponse::new).toList();
     }
 
     public URI scrapPost(String internalId, String postId) {
