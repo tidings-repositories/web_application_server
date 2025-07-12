@@ -6,6 +6,7 @@ import com.delivalue.tidings.domain.post.dto.PostCreateRequest;
 import com.delivalue.tidings.domain.post.dto.PostResponse;
 import com.mongodb.DuplicateKeyException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -34,6 +35,9 @@ public class PostService {
     private final ReportRepository reportRepository;
     private final FollowRepository followRepository;
     private final FeedRepository feedRepository;
+
+    @Value("${STELLAGRAM_OFFICIAL_INTERNAL_ID}")
+    private String STELLAGRAM_OFFICIAL_ID;
 
     public PostResponse getPostByPostId(String postId) {
         Optional<Post> result = this.postRepository.findByIdAndDeletedAtIsNull(postId);
@@ -162,7 +166,8 @@ public class PostService {
         if(findPost.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
 
         Post post = findPost.get();
-        if(!post.getInternalUserId().equals(internalId)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if(!internalId.equals(post.getInternalUserId()) &&
+                !internalId.equals(this.STELLAGRAM_OFFICIAL_ID)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
 
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
 
