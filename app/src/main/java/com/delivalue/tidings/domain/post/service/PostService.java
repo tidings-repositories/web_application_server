@@ -19,10 +19,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -88,7 +86,14 @@ public class PostService {
         query.limit(15);
 
         List<String> feedList = this.mongoTemplate.find(query, Feed.class).stream().map(Feed::getPostId).toList();
-        List<Post> feedPostList = this.postRepository.findByIdInAndDeletedAtIsNull(feedList);
+
+        Map<String, Post> feedPostMap = this.postRepository.findByIdInAndDeletedAtIsNull(feedList).stream()
+                .collect(Collectors.toMap(Post::getId, Function.identity()));
+
+        List<Post> feedPostList = feedList.stream()
+                .map(feedPostMap::get)
+                .filter(Objects::nonNull)
+                .toList();
 
         return feedPostList.stream().map(PostResponse::new).collect(Collectors.toList());
     }
