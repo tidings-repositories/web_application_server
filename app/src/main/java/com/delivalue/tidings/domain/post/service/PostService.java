@@ -283,12 +283,17 @@ public class PostService {
         Map<String, Post> likePostMap = this.postRepository.findByIdInAndDeletedAtIsNull(postIdList).stream()
                 .collect(Collectors.toMap(Post::getId, Function.identity()));
 
-        List<Post> likePostList = postIdList.stream()
-            .map(likePostMap::get)
+        return likeList.stream()
+            .map(thisLike -> {
+                Post thisPost = likePostMap.get(thisLike.getPostId());
+                if(thisPost == null) return null;
+
+                PostResponse thisPostResponse = new PostResponse(thisPost);
+                thisPostResponse.setLike_at(thisLike.getLikeAt());
+                return thisPostResponse;
+            })
             .filter(Objects::nonNull)
             .toList();
-
-        return likePostList.stream().map(PostResponse::new).toList();
     }
 
     public URI scrapPost(String internalId, String postId) {
