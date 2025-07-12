@@ -57,10 +57,17 @@ public class ProfileService {
         if(updateMember.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         Member member = updateMember.get();
 
+        boolean needSpread = false;
         Update spreadUpdate = new Update();
 
-        if(profileUpdateRequest.getProfileImage() != null) spreadUpdate.set("profileImage", profileUpdateRequest.getProfileImage());
-        if(profileUpdateRequest.getUserName() != null) spreadUpdate.set("userName", profileUpdateRequest.getUserName());
+        if(profileUpdateRequest.getProfileImage() != null) {
+            spreadUpdate.set("profileImage", profileUpdateRequest.getProfileImage());
+            needSpread = true;
+        }
+        if(profileUpdateRequest.getUserName() != null) {
+            spreadUpdate.set("userName", profileUpdateRequest.getUserName());
+            needSpread = true;
+        }
         if(profileUpdateRequest.getBadgeId() != null) {
             if (profileUpdateRequest.getBadgeId() == 0) {
                 spreadUpdate.set("badge", null);
@@ -76,6 +83,7 @@ public class ProfileService {
 
                 spreadUpdate.set("badge", badge);
             }
+            needSpread = true;
         }
 
         this.memberQueryRepository.updateMemberProfile(profileUpdateRequest);
@@ -103,8 +111,10 @@ public class ProfileService {
         );
 
         //TODO: 이후 Worker server로 기능 이동
-        this.mongoTemplate.updateMulti(findPostInternalUserIdQuery, spreadUpdate, Post.class);
-        this.mongoTemplate.updateMulti(findPostOriginUserIdQuery, spreadUpdate, Post.class);
-        this.mongoTemplate.updateMulti(findCommentInternalUserIdQuery, spreadUpdate, Comment.class);
+        if(needSpread) {
+            this.mongoTemplate.updateMulti(findPostInternalUserIdQuery, spreadUpdate, Post.class);
+            this.mongoTemplate.updateMulti(findPostOriginUserIdQuery, spreadUpdate, Post.class);
+            this.mongoTemplate.updateMulti(findCommentInternalUserIdQuery, spreadUpdate, Comment.class);
+        }
     }
 }
