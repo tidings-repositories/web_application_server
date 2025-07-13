@@ -50,20 +50,17 @@ public class PostService {
         if(cursorId != null && cursorTime != null) {
             query.addCriteria(
                 new Criteria().orOperator(
-                    new Criteria().andOperator(
-                        Criteria.where("createdAt").lt(cursorTime),
-                        Criteria.where("isOrigin").is(true)
-                    ),
+                    Criteria.where("createdAt").lt(cursorTime),
                     new Criteria().andOperator(
                             Criteria.where("createdAt").is(cursorTime),
-                            Criteria.where("_id").lt(cursorId),
-                            Criteria.where("isOrigin").is(true)
+                            Criteria.where("_id").lt(cursorId)
                     )
                 )
             );
         }
 
         query.addCriteria(Criteria.where("deletedAt").is(null));
+        query.addCriteria(Criteria.where("isOrigin").is(true));
 
         query.with(Sort.by(Sort.Direction.DESC, "createdAt", "_id"));
         query.limit(15);
