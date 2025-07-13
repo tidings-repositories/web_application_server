@@ -50,10 +50,14 @@ public class PostService {
         if(cursorId != null && cursorTime != null) {
             query.addCriteria(
                 new Criteria().orOperator(
-                    Criteria.where("createdAt").lt(cursorTime),
+                    new Criteria().andOperator(
+                        Criteria.where("createdAt").lt(cursorTime),
+                        Criteria.where("isOrigin").is(true)
+                    ),
                     new Criteria().andOperator(
                             Criteria.where("createdAt").is(cursorTime),
-                            Criteria.where("_id").lt(cursorId)
+                            Criteria.where("_id").lt(cursorId),
+                            Criteria.where("isOrigin").is(true)
                     )
                 )
             );
@@ -101,7 +105,7 @@ public class PostService {
     public List<PostResponse> getUserPostByCursor(String userId, LocalDateTime cursorTime) {
         Member member = this.memberRepository.findByPublicId(userId);
         if(member == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        if(member.getDeletedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
+        if(member.getDeletedAt() != null || member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
 
         Query query = new Query();
         query.addCriteria(
@@ -123,6 +127,8 @@ public class PostService {
         if(requestMember.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 
         Member member = requestMember.get();
+        if(member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 차단된 사용자입니다.");
+
         request.setUserId(member.getPublicId());
         request.setUserName(member.getName());
         request.setProfileImage(member.getProfileImage());
@@ -202,6 +208,7 @@ public class PostService {
         Optional<Member> likeMember = this.memberRepository.findById(internalId);
         if(likeMember.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         Member member = likeMember.get();
+        if(member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 차단된 사용자입니다.");
 
         Optional<Post> likePost = this.postRepository.findById(postId);
         if(likePost.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
@@ -257,7 +264,7 @@ public class PostService {
     public List<PostResponse> getUserLikePostByCursor(String userId, LocalDateTime cursorTime, String cursorId) {
         Member member = this.memberRepository.findByPublicId(userId);
         if(member == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        if(member.getDeletedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
+        if(member.getDeletedAt() != null || member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
 
         Query query = new Query();
         query.addCriteria(Criteria.where("likeUserId").is(userId));
@@ -300,7 +307,9 @@ public class PostService {
         //멤버 존재하는지 확인
         Optional<Member> requestMember = this.memberRepository.findById(internalId);
         if(requestMember.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+
         Member member = requestMember.get();
+        if(member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 차단된 사용자입니다.");
 
         //포스트가 존재하는지 확인
         Optional<Post> targetPost = this.postRepository.findByIdAndDeletedAtIsNull(postId);
@@ -318,6 +327,7 @@ public class PostService {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN);
 
             //만약 스크랩 이력이 있지만, 삭제했었다면 삭제 취소
+            presentScrap.setCreatedAt(LocalDateTime.now(ZoneId.of("Asia/Seoul")));
             presentScrap.setDeletedAt(null);
             this.postRepository.save(presentScrap);
 
@@ -340,6 +350,7 @@ public class PostService {
 
         //스크랩 데이터 초기화
         if(post.isOrigin()) {
+            post.setCreatedAt(LocalDateTime.now(ZoneId.of("Asia/Seoul")));
             post.setOriginalPostId(post.getId());
             post.setOriginalUserId(post.getUserId());
             post.setOrigin(false);

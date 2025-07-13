@@ -4,7 +4,9 @@ import com.delivalue.tidings.domain.data.entity.Member;
 import com.delivalue.tidings.domain.data.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -27,6 +29,8 @@ public class StorageService {
     public URL getProfilePresignedUploadUrl(String internalId, String contentType) {
         Optional<Member> member = this.memberRepository.findById(internalId);
         if(member.isEmpty()) return null;
+        if(member.get().getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.get().getBanReason() + " 사유로 차단된 사용자입니다.");
+
 
         String publicId = member.get().getPublicId();
         String uuid = UUID.randomUUID().toString();
@@ -38,6 +42,8 @@ public class StorageService {
     public URL getPostMediaPresignedUploadUrl(String internalId, String contentType) {
         Optional<Member> member = this.memberRepository.findById(internalId);
         if(member.isEmpty()) return null;
+        if(member.get().getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.get().getBanReason() + " 사유로 차단된 사용자입니다.");
+
 
         String publicId = member.get().getPublicId();
         String uuid = UUID.randomUUID().toString();

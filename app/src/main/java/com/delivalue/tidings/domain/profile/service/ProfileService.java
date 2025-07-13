@@ -35,6 +35,7 @@ public class ProfileService {
 
         Member member = resultMember.get();
         if(member.getDeletedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
+        if(member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 차단된 사용자입니다.");
 
         return new ProfileResponse(member);
     }
@@ -42,7 +43,7 @@ public class ProfileService {
     public ProfileResponse getProfileByPublicId(String publicId) {
         Member member = this.memberRepository.findByPublicId(publicId);
         if(member == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        if(member.getDeletedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
+        if(member.getDeletedAt() != null || member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
 
         return new ProfileResponse(member);
     }
@@ -55,7 +56,9 @@ public class ProfileService {
     public void updateProfile(ProfileUpdateRequest profileUpdateRequest) {
         Optional<Member> updateMember = this.memberRepository.findById(profileUpdateRequest.getId());
         if(updateMember.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+
         Member member = updateMember.get();
+        if(member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 차단된 사용자입니다.");
 
         boolean needSpread = false;
         Update spreadUpdate = new Update();

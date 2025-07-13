@@ -42,4 +42,10 @@ public class Member {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
+
+    @Column(name = "banned_at")
+    private LocalDateTime bannedAt;
+
+    @Column(name = "ban_reason")
+    private String banReason;
 }
