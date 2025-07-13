@@ -55,7 +55,7 @@ public class CommentService {
     public List<CommentResponse> getUserCommentByCursor(String userId, LocalDateTime cursorTime) {
         Member member = this.memberRepository.findByPublicId(userId);
         if(member == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        if(member.getDeletedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
+        if(member.getDeletedAt() != null || member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
 
         Query query = new Query();
         query.addCriteria(
@@ -77,6 +77,7 @@ public class CommentService {
         if(requestMember.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 
         Member member = requestMember.get();
+        if(member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 차단된 사용자입니다.");
 
         Comment.CommentBuilder commentBuilder = Comment.builder();
         commentBuilder
@@ -115,6 +116,7 @@ public class CommentService {
         if(requestMember.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 
         Member member = requestMember.get();
+        if(member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 차단된 사용자입니다.");
 
         Comment.CommentBuilder commentBuilder = Comment.builder();
         commentBuilder
