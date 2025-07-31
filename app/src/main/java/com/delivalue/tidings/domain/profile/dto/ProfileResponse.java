@@ -1,6 +1,7 @@
 package com.delivalue.tidings.domain.profile.dto;
 
 import com.delivalue.tidings.domain.data.entity.Member;
+import com.delivalue.tidings.domain.data.entity.MemberSearch;
 import lombok.Getter;
 
 @Getter
@@ -19,6 +20,15 @@ public class ProfileResponse {
         this.bio = member.getBio();
         this.profile_image = member.getProfileImage();
         this.badge = member.getBadge() != null ? new BadgeDto(member.getBadge()) : null;
+        this.following_count = member.getFollowingCount();
+        this.follower_count = member.getFollowerCount();
+    }
+    public ProfileResponse(MemberSearch member, BadgeDto badge) {
+        this.user_id = member.getPublicId();
+        this.user_name = member.getName();
+        this.bio = member.getBio();
+        this.profile_image = member.getProfileImage();
+        this.badge = badge;
         this.following_count = member.getFollowingCount();
         this.follower_count = member.getFollowerCount();
     }
