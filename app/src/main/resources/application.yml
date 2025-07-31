@@ -35,4 +35,13 @@ spring:
         format_sql: true
   data:
     mongodb:
-      uri: mongodb://${MongoDB_USER}:${MongoDB_PASSWORD}@${MongoDB_URL}/${MongoDB_DATABASE}?authSource=${MongoDB_DATABASE}
+      uri: mongodb://${MongoDB_USER}:${MongoDB_PASSWORD}@${MongoDB_URL}/${MongoDB_DATABASE}?authSource=${MongoDB_DATABASE}&replicaSet=rs0
+    elasticsearch:
+      repositories:
+        enabled: true
+  elasticsearch:
+    uris: http://${Elasticsearch_URL}
+    username: ${Elasticsearch_USER}
+    password: ${Elasticsearch_PASSWORD}
+    connection-timeout: 3s
+    read-timeout: 30s

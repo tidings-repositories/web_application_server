@@ -1,6 +1,10 @@
 package com.delivalue.tidings.domain.post.dto;
 
 import com.delivalue.tidings.domain.data.entity.Post;
+import com.delivalue.tidings.domain.data.entity.PostSearch;
+import com.delivalue.tidings.domain.data.entity.interfaces.BadgeStructure;
+import com.delivalue.tidings.domain.data.entity.interfaces.ContentStructure;
+import com.delivalue.tidings.domain.data.entity.interfaces.PostStructure;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,33 +15,54 @@ import java.util.stream.Collectors;
 @Getter
 @Setter
 public class PostResponse {
-    private final String post_id;
-    private final String user_id;
-    private final String user_name;
-    private final String profile_image;
-    private final BadgeResponse badge;
-    private final LocalDateTime create_at;
-    private final ContentResponse content;
-    private final Integer comment_count;
-    private final Integer like_count;
-    private final Integer scrap_count;
-    private final boolean isOrigin;
+    private String post_id;
+    private String user_id;
+    private String user_name;
+    private String profile_image;
+    private BadgeResponse badge;
+    private LocalDateTime create_at;
+    private ContentResponse content;
+    private Integer comment_count;
+    private Integer like_count;
+    private Integer scrap_count;
+    private boolean isOrigin;
 
     //Required when isOrigin false
-    private final String original_post_id;
-    private final String original_user_id;
+    private String original_post_id;
+    private String original_user_id;
 
-    //Required when like pose response
+    //Required when like post response
     private LocalDateTime like_at;
-    
+
     public PostResponse(Post post) {
+        this.injection(post);
+    }
+    public PostResponse(PostSearch post) {
+        this.injection(post);
+    }
+
+    private void injection(PostStructure post) {
         this.post_id = post.getId();
         this.user_id = post.getUserId();
         this.user_name = post.getUserName();
         this.profile_image = post.getProfileImage();
-        this.badge = new BadgeResponse().getBadgeResponse(post.getBadge());
+
+        BadgeStructure badgeSource = post.getBadge();
+        this.badge = badgeSource != null
+                ? new BadgeResponse().getBadgeResponse(badgeSource.getId(), badgeSource.getName(), badgeSource.getUrl())
+                : null;
+
         this.create_at = post.getCreatedAt();
-        this.content = new ContentResponse().getContentResponse(post.getContent());
+
+        ContentStructure contentSource = post.getContent();
+        this.content =  new ContentResponse().getContentResponse(
+                contentSource.getText(),
+                contentSource.getMedia().stream()
+                        .map(postMedia -> new PostMediaResponse().getPostMediaResponse(postMedia.getType(), postMedia.getUrl()))
+                        .collect(Collectors.toList()),
+                contentSource.getTag()
+        );
+
         this.comment_count = post.getCommentCount();
         this.like_count = post.getLikeCount();
         this.scrap_count = post.getScrapCount();
@@ -52,12 +77,10 @@ public class PostResponse {
         private String name;
         private String url;
 
-        public BadgeResponse getBadgeResponse(Post.Badge badge) {
-            if(badge == null) return null;
-
-            this.id = badge.getId();
-            this.name = badge.getName();
-            this.url = badge.getUrl();
+        public BadgeResponse getBadgeResponse(Integer id, String name, String url) {
+            this.id = id;
+            this.name = name;
+            this.url = url;
             return this;
         }
     }
@@ -68,14 +91,11 @@ public class PostResponse {
         private List<PostMediaResponse> media;
         private List<String> tag;
 
-        public ContentResponse getContentResponse(Post.Content content) {
-            if(content == null) return null;
+        public ContentResponse getContentResponse(String text, List<PostMediaResponse> media, List<String> tag) {
 
-            this.text = content.getText();
-            this.media = content.getMedia().stream()
-                    .map(postMedia -> new PostMediaResponse().getPostMediaResponse(postMedia))
-                    .collect(Collectors.toList());
-            this.tag = content.getTag();
+            this.text = text;
+            this.media = media;
+            this.tag = tag;
             return this;
         }
     }
@@ -85,11 +105,9 @@ public class PostResponse {
         private String type; // image/video
         private String url;
 
-        public PostMediaResponse getPostMediaResponse(Post.PostMedia postMedia) {
-            if(postMedia == null) return null;
-
-            this.type = postMedia.getType();
-            this.url = postMedia.getUrl();
+        public PostMediaResponse getPostMediaResponse(String type, String url) {
+            this.type = type;
+            this.url = url;
             return this;
         }
     }

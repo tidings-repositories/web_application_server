@@ -1,6 +1,7 @@
 package com.delivalue.tidings.domain.post.dto;
 
 import com.delivalue.tidings.domain.data.entity.Post;
+import com.delivalue.tidings.domain.data.entity.interfaces.PostMediaStructure;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -29,7 +30,7 @@ public class PostCreateRequest {
     public PostCreateRequest(Post.Content requestBody) {
         if(!requestBody.getMedia().isEmpty()) {
             String CDN_ORIGIN = "https://cdn.stellagram.kr";
-            List<Post.PostMedia> mediaList = requestBody.getMedia();
+            List<PostMediaStructure> mediaList = requestBody.getMedia();
             mediaList.forEach(media -> {
                 String beforeProcessUrl = media.getUrl();
                 String path = URI.create(beforeProcessUrl).getPath();
