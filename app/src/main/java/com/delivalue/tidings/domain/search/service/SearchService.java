@@ -1,11 +1,9 @@
 package com.delivalue.tidings.domain.search.service;
 
 import com.delivalue.tidings.domain.data.entity.Badge;
-import com.delivalue.tidings.domain.data.entity.Member;
 import com.delivalue.tidings.domain.data.entity.MemberSearch;
 import com.delivalue.tidings.domain.data.entity.PostSearch;
 import com.delivalue.tidings.domain.data.repository.BadgeRepository;
-import com.delivalue.tidings.domain.data.repository.MemberRepository;
 import com.delivalue.tidings.domain.data.repository.MemberSearchRepository;
 import com.delivalue.tidings.domain.data.repository.PostSearchRepository;
 import com.delivalue.tidings.domain.post.dto.PostResponse;
