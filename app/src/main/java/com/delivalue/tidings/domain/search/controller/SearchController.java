@@ -1,6 +1,7 @@
 package com.delivalue.tidings.domain.search.controller;
 
 import com.delivalue.tidings.common.TokenProvider;
+import com.delivalue.tidings.domain.post.dto.PostResponse;
 import com.delivalue.tidings.domain.profile.dto.ProfileResponse;
 import com.delivalue.tidings.domain.search.service.SearchService;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,23 @@ public class SearchController {
                 && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
 
             List<ProfileResponse> result = this.searchService.getProfileBySearchKeyword(keyword);
+
+            return ResponseEntity.ok(result);
+        }
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    @GetMapping("/post")
+    public ResponseEntity<List<PostResponse>> requestSearchPost(@RequestHeader("Authorization") String authorizationHeader, @RequestParam(value = "q") String keyword) {
+        int TOKEN_PREFIX_LENGTH = 7;
+
+        if(keyword == null || keyword.length() < 2) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if(authorizationHeader != null
+                && authorizationHeader.startsWith("Bearer ")
+                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
+
+            List<PostResponse> result = this.searchService.getPostBySearchKeyword(keyword);
 
             return ResponseEntity.ok(result);
         }
