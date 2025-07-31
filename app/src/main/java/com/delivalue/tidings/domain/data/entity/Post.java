@@ -1,11 +1,16 @@
 package com.delivalue.tidings.domain.data.entity;
 
+import com.delivalue.tidings.domain.data.entity.interfaces.BadgeStructure;
+import com.delivalue.tidings.domain.data.entity.interfaces.ContentStructure;
+import com.delivalue.tidings.domain.data.entity.interfaces.PostMediaStructure;
+import com.delivalue.tidings.domain.data.entity.interfaces.PostStructure;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Document(collection = "posts")
@@ -14,7 +19,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Post {
+public class Post implements PostStructure {
 
     @Id
     private String id;
@@ -41,7 +46,8 @@ public class Post {
 
     @Getter
     @Setter
-    public static class Badge {
+    @NoArgsConstructor
+    public static class Badge implements BadgeStructure {
         private Integer id;
         private String name;
         private String url;
@@ -49,20 +55,22 @@ public class Post {
 
     @Getter
     @Setter
-    @Builder
     @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Content {
+    public static class Content implements ContentStructure {
         private String text;
         private List<PostMedia> media;
         private List<String> tag;
+
+        @Override
+        public List<PostMediaStructure> getMedia() {
+            return new ArrayList<>(media);
+        }
     }
 
     @Getter
     @Setter
     @NoArgsConstructor
-    @AllArgsConstructor
-    public static class PostMedia {
+    public static class PostMedia implements PostMediaStructure {
         private String type; // image/video
         private String url;
     }
