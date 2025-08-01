@@ -12,6 +12,7 @@ import com.delivalue.tidings.domain.profile.dto.ProfileResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,12 +26,10 @@ public class SearchService {
     private final MemberSearchRepository memberSearchRepository;
     private final BadgeRepository badgeRepository;
 
-    private final Pageable pageable = PageRequest.of(0, 30);
-
     @Transactional(readOnly = true)
     public List<ProfileResponse> getProfileBySearchKeyword(String keyword) {
+        Pageable pageable = PageRequest.of(0, 30);
         List<MemberSearch> searchResult = this.memberSearchRepository.searchMembers(keyword, pageable);
-
 
         return searchResult.stream().map(result -> {
             Integer badgeId = result.getBadge();
@@ -47,6 +46,10 @@ public class SearchService {
     }
 
     public List<PostResponse> getPostBySearchKeyword(String keyword) {
+        Pageable pageable = PageRequest.of(0, 30, Sort.by(
+                Sort.Order.desc("_score"),
+                Sort.Order.desc("createdAt")
+        ));
         List<PostSearch> searchResult = this.postSearchRepository.searchPosts(keyword, pageable);
 
         return searchResult.stream().map(PostResponse::new).toList();
