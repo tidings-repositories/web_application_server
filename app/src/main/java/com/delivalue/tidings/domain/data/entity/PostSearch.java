@@ -103,14 +103,14 @@ public class PostSearch implements PostStructure {
     @Transient
     public LocalDateTime getCreatedAt() {
         return Instant.ofEpochMilli(this.createdAt)
-                .atZone(ZoneId.of("Asia/Seoul"))
+                .atZone(ZoneId.systemDefault())
                 .toLocalDateTime();
     }
 
     @Transient
     public LocalDateTime getDeletedAt() {
         return Instant.ofEpochMilli(this.deletedAt)
-                .atZone(ZoneId.of("Asia/Seoul"))
+                .atZone(ZoneId.systemDefault())
                 .toLocalDateTime();
     }
 }
