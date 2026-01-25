@@ -1,11 +1,10 @@
 package com.delivalue.tidings.domain.data.controller;
 
 import com.delivalue.tidings.common.RequestValidator;
-import com.delivalue.tidings.common.TokenProvider;
 import com.delivalue.tidings.domain.data.service.StorageService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URL;
@@ -17,53 +16,56 @@ import java.util.Map;
 @RequestMapping("/storage")
 @RequiredArgsConstructor
 public class StorageController {
-    private final StorageService storageService;
-    private final TokenProvider tokenProvider;
-    private final RequestValidator requestValidator;
 
-    @PostMapping("/api/upload/profile")
-    public ResponseEntity<Map<String, String>> getProfileUploadUrl(@RequestHeader("Authorization") String authorizationHeader, @RequestBody Map<String, String> body) {
-        int TOKEN_PREFIX_LENGTH = 7;
-        if(authorizationHeader != null
-                && authorizationHeader.startsWith("Bearer ")
-                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
-            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+	private final StorageService storageService;
+	private final RequestValidator requestValidator;
 
-            String contentType = body.get("content-type");
-            if(body.isEmpty() || contentType == null) return ResponseEntity.badRequest().build();
-            if(!requestValidator.checkImageContentType(contentType)) return ResponseEntity.badRequest().build();
+	@PostMapping("/api/upload/profile")
+	public ResponseEntity<Map<String, String>> getProfileUploadUrl(
+			@AuthenticationPrincipal String userId,
+			@RequestBody Map<String, String> body
+	) {
+		String contentType = body.get("content-type");
+		if (body.isEmpty() || contentType == null) {
+			return ResponseEntity.badRequest().build();
+		}
+		if (!requestValidator.checkImageContentType(contentType)) {
+			return ResponseEntity.badRequest().build();
+		}
 
-            URL presignedURL = storageService.getProfilePresignedUploadUrl(id, contentType);
+		URL presignedURL = storageService.getProfilePresignedUploadUrl(userId, contentType);
 
-            if(presignedURL != null) return ResponseEntity.ok(Map.of("presignedUrl", presignedURL.toString()));
-            else return ResponseEntity.internalServerError().build();
-        } else return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
+		if (presignedURL != null) {
+			return ResponseEntity.ok(Map.of("presignedUrl", presignedURL.toString()));
+		} else {
+			return ResponseEntity.internalServerError().build();
+		}
+	}
 
-    @PostMapping("/api/upload/post")
-    public ResponseEntity<Map<String, List<String>>> getPostMediaUploadUrls(@RequestHeader("Authorization") String authorizationHeader, @RequestBody Map<String, List<String>> body) {
-        int TOKEN_PREFIX_LENGTH = 7;
-        if(authorizationHeader != null
-                && authorizationHeader.startsWith("Bearer ")
-                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
-            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+	@PostMapping("/api/upload/post")
+	public ResponseEntity<Map<String, List<String>>> getPostMediaUploadUrls(
+			@AuthenticationPrincipal String userId,
+			@RequestBody Map<String, List<String>> body
+	) {
+		try {
+			List<String> contentTypeList = body.get("content-types");
+			if (body.isEmpty() || contentTypeList.isEmpty()) {
+				return ResponseEntity.badRequest().build();
+			}
 
-            try{
-                List<String> contentTypeList = body.get("content-types");
-                if(body.isEmpty() || contentTypeList.isEmpty()) return ResponseEntity.badRequest().build();
+			List<String> result = new ArrayList<>();
+			for (String contentType : contentTypeList) {
+				if (!requestValidator.checkMediaContentType(contentType)) {
+					return ResponseEntity.badRequest().build();
+				}
 
-                List<String> result = new ArrayList<String>();
-                for (String contentType : contentTypeList) {
-                    if(!requestValidator.checkMediaContentType(contentType)) return ResponseEntity.badRequest().build();
+				URL presignedURL = storageService.getPostMediaPresignedUploadUrl(userId, contentType);
+				result.add(presignedURL.toString());
+			}
 
-                    URL presignedURL = storageService.getPostMediaPresignedUploadUrl(id, contentType);
-                    result.add(presignedURL.toString());
-                }
-
-                return ResponseEntity.ok(Map.of("presignedUrls", result));
-            } catch (Exception e) {
-                return ResponseEntity.badRequest().build();
-            }
-        } else return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
+			return ResponseEntity.ok(Map.of("presignedUrls", result));
+		} catch (Exception e) {
+			return ResponseEntity.badRequest().build();
+		}
+	}
 }

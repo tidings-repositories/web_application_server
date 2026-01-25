@@ -1,12 +1,18 @@
 package com.delivalue.tidings.config;
 
+import com.delivalue.tidings.common.security.JwtAuthenticationEntryPoint;
+import com.delivalue.tidings.common.security.JwtAuthenticationFilter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
@@ -15,39 +21,85 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf((csrf) -> csrf.disable())
-                .authorizeHttpRequests((requests) -> requests
-                        .requestMatchers("/oauth2/authorization/**").authenticated()
-                        .requestMatchers("/auth/refresh").permitAll()
-                        .requestMatchers("/auth/account").permitAll()
-                        .requestMatchers("/auth/**").authenticated()
-                        .anyRequest().permitAll()
-                )
-                .oauth2Login((login) -> login
-                        .defaultSuccessUrl("/signInEvent.html")
-                );
-        return http.build();
-    }
+	private final JwtAuthenticationFilter jwtAuthenticationFilter;
+	private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
-    @Bean
-    public FilterRegistrationBean<CorsFilter> corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("https://stellagram.kr", "https://www.stellagram.kr", "http://localhost:5173"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
+	@Bean
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+		http
+				.csrf(csrf -> csrf.disable())
+				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+				.exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
+				.authorizeHttpRequests(requests -> requests
+						// OAuth2 관련 경로
+						.requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+						// 인증 불필요 - Auth
+						.requestMatchers("/auth/login", "/auth/register", "/auth/check").permitAll()
 
-        FilterRegistrationBean<CorsFilter> bean = new FilterRegistrationBean<>(new CorsFilter(source));
-        bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
+						// 인증 불필요 - Post
+						.requestMatchers("/post/recent").permitAll()
+						.requestMatchers(HttpMethod.GET, "/post/{postId}").permitAll()
 
-        return bean;
-    }
+						// 인증 불필요 - Comment
+						.requestMatchers(HttpMethod.GET, "/comment/{postId}").permitAll()
+
+						// 인증 불필요 - Profile (공개 프로필)
+						.requestMatchers("/profile/{publicId}").permitAll()
+						.requestMatchers("/profile/{publicId}/**").permitAll()
+
+						// 인증 필요 - Post
+						.requestMatchers(HttpMethod.POST, "/post").authenticated()
+						.requestMatchers(HttpMethod.DELETE, "/post/**").authenticated()
+						.requestMatchers("/post/feed").authenticated()
+						.requestMatchers("/post/**/like").authenticated()
+						.requestMatchers("/post/**/scrap").authenticated()
+						.requestMatchers("/post/**/report").authenticated()
+
+						// 인증 필요 - Comment
+						.requestMatchers(HttpMethod.POST, "/comment/**").authenticated()
+						.requestMatchers(HttpMethod.DELETE, "/comment/**").authenticated()
+
+						// 인증 필요 - Follow
+						.requestMatchers("/follow/**").authenticated()
+
+						// 인증 필요 - Profile (내 프로필)
+						.requestMatchers(HttpMethod.GET, "/profile").authenticated()
+						.requestMatchers(HttpMethod.PATCH, "/profile").authenticated()
+						.requestMatchers("/profile/badge").authenticated()
+
+						// 인증 필요 - 기타
+						.requestMatchers("/coupon/**").authenticated()
+						.requestMatchers("/storage/**").authenticated()
+						.requestMatchers("/search/**").authenticated()
+						.requestMatchers("/auth/refresh", "/auth/account").authenticated()
+
+						// 나머지 요청
+						.anyRequest().permitAll()
+				)
+				.oauth2Login(login -> login.defaultSuccessUrl("/signInEvent.html"))
+				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+		return http.build();
+	}
+
+	@Bean
+	public FilterRegistrationBean<CorsFilter> corsConfigurationSource() {
+		CorsConfiguration configuration = new CorsConfiguration();
+		configuration.setAllowedOriginPatterns(List.of("https://stellagram.kr", "https://www.stellagram.kr", "http://localhost:5173"));
+		configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
+		configuration.setAllowedHeaders(List.of("*"));
+		configuration.setAllowCredentials(true);
+
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+		source.registerCorsConfiguration("/**", configuration);
+
+		FilterRegistrationBean<CorsFilter> bean = new FilterRegistrationBean<>(new CorsFilter(source));
+		bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
+
+		return bean;
+	}
 }

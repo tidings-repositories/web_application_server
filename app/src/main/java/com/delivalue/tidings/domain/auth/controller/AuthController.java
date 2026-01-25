@@ -8,10 +8,10 @@ import com.delivalue.tidings.domain.auth.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
@@ -19,103 +19,92 @@ import java.util.Map;
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {
-    private final AuthService authService;
-    private final TokenProvider tokenProvider;
 
-    @GetMapping("/login")
-    public ResponseEntity<LoginResponse> continueWithGoogle(OAuth2AuthenticationToken authToken, @AuthenticationPrincipal OAuth2User principal) {
-        LoginResponse.LoginResponseBuilder response = LoginResponse.builder();
-        Map<String, Object> resource = principal.getAttributes();
+	private final AuthService authService;
+	private final TokenProvider tokenProvider;
 
-        String registrationId = authToken.getAuthorizedClientRegistrationId();
-        String expectId = registrationId + "@" + resource.get("sub");
+	@GetMapping("/login")
+	public ResponseEntity<LoginResponse> continueWithGoogle(
+			OAuth2AuthenticationToken authToken,
+			@AuthenticationPrincipal OAuth2User principal
+	) {
+		LoginResponse.LoginResponseBuilder response = LoginResponse.builder();
+		Map<String, Object> resource = principal.getAttributes();
 
-        boolean isUserExist = authService.checkUserExist(expectId);
-        if(isUserExist) {
-            response
-                    .result("login")
-                    .refreshToken(this.tokenProvider.generateJWT(expectId, "REFRESH"))
-                    .accessToken(this.tokenProvider.generateJWT(expectId, "ACCESS"));
+		String registrationId = authToken.getAuthorizedClientRegistrationId();
+		String expectId = registrationId + "@" + resource.get("sub");
 
-            return ResponseEntity.ok(response.build());
-        } else {
-            response
-                    .result("register")
-                    .refreshToken(null)
-                    .accessToken(null);
+		boolean isUserExist = authService.checkUserExist(expectId);
+		if (isUserExist) {
+			response
+					.result("login")
+					.refreshToken(this.tokenProvider.generateJWT(expectId, "REFRESH"))
+					.accessToken(this.tokenProvider.generateJWT(expectId, "ACCESS"));
 
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response.build());
-        }
-    }
+			return ResponseEntity.ok(response.build());
+		} else {
+			response
+					.result("register")
+					.refreshToken(null)
+					.accessToken(null);
 
-    @GetMapping("/check")
-    public ResponseEntity<PublicIdValidateResponse> checkPublicId(@RequestParam(value = "id") String publicId) {
-        return ResponseEntity.ok(authService.checkPublicIdUsable(publicId.trim()));
-    }
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response.build());
+		}
+	}
 
-    @PostMapping("/register")
-    public ResponseEntity<LoginResponse> register(OAuth2AuthenticationToken authToken, @AuthenticationPrincipal OAuth2User principal, @RequestBody Map<String, String> body) {
-        String publicId = body.get("publicId");
-        PublicIdValidateResponse validateResult = authService.checkPublicIdUsable(publicId);
-        Map<String, Object> resource = principal.getAttributes();
+	@GetMapping("/check")
+	public ResponseEntity<PublicIdValidateResponse> checkPublicId(@RequestParam(value = "id") String publicId) {
+		return ResponseEntity.ok(authService.checkPublicIdUsable(publicId.trim()));
+	}
 
-        if(validateResult.isResult() && resource != null) {
-            LoginResponse response;
-            String registrationId = authToken.getAuthorizedClientRegistrationId();
-            String internalId = registrationId + "@" + resource.get("sub");
-            RegisterRequest newMemberData = new RegisterRequest(internalId, publicId, resource.get("name").toString(), resource.get("email").toString());
+	@PostMapping("/register")
+	public ResponseEntity<LoginResponse> register(
+			OAuth2AuthenticationToken authToken,
+			@AuthenticationPrincipal OAuth2User principal,
+			@RequestBody Map<String, String> body
+	) {
+		String publicId = body.get("publicId");
+		PublicIdValidateResponse validateResult = authService.checkPublicIdUsable(publicId);
+		Map<String, Object> resource = principal.getAttributes();
 
-            try {
-                 response = authService.registerMember(newMemberData);
-            } catch (Exception e) {
-                return ResponseEntity.internalServerError().build();
-            }
+		if (validateResult.isResult() && resource != null) {
+			LoginResponse response;
+			String registrationId = authToken.getAuthorizedClientRegistrationId();
+			String internalId = registrationId + "@" + resource.get("sub");
+			RegisterRequest newMemberData = new RegisterRequest(
+					internalId,
+					publicId,
+					resource.get("name").toString(),
+					resource.get("email").toString()
+			);
 
-            return ResponseEntity.ok(response);
-        }
-        else return ResponseEntity.badRequest().build();
-    }
+			try {
+				response = authService.registerMember(newMemberData);
+			} catch (Exception e) {
+				return ResponseEntity.internalServerError().build();
+			}
 
-    @GetMapping("/refresh")
-    public ResponseEntity<LoginResponse> refresh(@RequestHeader("Authorization") String authorizationHeader) {
-        int TOKEN_PREFIX_LENGTH = 7;
-        LoginResponse.LoginResponseBuilder response = LoginResponse.builder();
+			return ResponseEntity.ok(response);
+		} else {
+			return ResponseEntity.badRequest().build();
+		}
+	}
 
-        if(authorizationHeader != null
-                && authorizationHeader.startsWith("Bearer ")
-                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
-            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+	@GetMapping("/refresh")
+	public ResponseEntity<LoginResponse> refresh(@AuthenticationPrincipal String userId) {
+		LoginResponse.LoginResponseBuilder response = LoginResponse.builder();
 
-            response
-                    .result("refresh")
-                    .refreshToken(null)
-                    .accessToken(this.tokenProvider.generateJWT(id, "ACCESS"));
+		response
+				.result("refresh")
+				.refreshToken(null)
+				.accessToken(this.tokenProvider.generateJWT(userId, "ACCESS"));
 
-            return ResponseEntity.ok(response.build());
-        } else {
-            response
-                    .result("failed")
-                    .refreshToken(null)
-                    .accessToken(null);
+		return ResponseEntity.ok(response.build());
+	}
 
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response.build());
-        }
-    }
-
-    @DeleteMapping("/account")
-    public ResponseEntity<?> delete(@RequestHeader("Authorization") String authorizationHeader) {
-        int TOKEN_PREFIX_LENGTH = 7;
-
-        if(authorizationHeader != null
-                && authorizationHeader.startsWith("Bearer ")
-                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
-            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
-
-            this.authService.deleteMember(id);
-            return ResponseEntity.ok().build();
-        }
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-
+	@DeleteMapping("/account")
+	public ResponseEntity<?> delete(@AuthenticationPrincipal String userId) {
+		this.authService.deleteMember(userId);
+		return ResponseEntity.ok().build();
+	}
 }

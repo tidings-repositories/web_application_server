@@ -1,6 +1,5 @@
 package com.delivalue.tidings.domain.post.controller;
 
-import com.delivalue.tidings.common.TokenProvider;
 import com.delivalue.tidings.domain.data.entity.Post;
 import com.delivalue.tidings.domain.post.dto.PostCreateRequest;
 import com.delivalue.tidings.domain.post.dto.PostResponse;
@@ -8,6 +7,7 @@ import com.delivalue.tidings.domain.post.service.PostService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -21,159 +21,126 @@ import java.util.Map;
 @RequestMapping("/post")
 @RequiredArgsConstructor
 public class PostController {
-    private final PostService postService;
-    private final TokenProvider tokenProvider;
 
-    @PostMapping("/recent")
-    public ResponseEntity<List<PostResponse>> requestRecentPostList(@RequestBody Map<String, String> body) {
-        String cursorId = (String) body.get("postId");
-        OffsetDateTime requestCursor = body.get("createdAt") != null ? OffsetDateTime.parse((String) body.get("createdAt")) : null;
-        LocalDateTime cursorTime = requestCursor != null ? requestCursor.toLocalDateTime() : null;
+	private final PostService postService;
 
-        try {
-            List<PostResponse> result = this.postService.getRecentPostByCursor(cursorId, cursorTime);
+	@PostMapping("/recent")
+	public ResponseEntity<List<PostResponse>> requestRecentPostList(@RequestBody Map<String, String> body) {
+		String cursorId = body.get("postId");
+		OffsetDateTime requestCursor = body.get("createdAt") != null ? OffsetDateTime.parse(body.get("createdAt")) : null;
+		LocalDateTime cursorTime = requestCursor != null ? requestCursor.toLocalDateTime() : null;
 
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            System.out.printf("Catch Error /post/recent: " + e.getMessage());
-            return ResponseEntity.internalServerError().build();
-        }
-    }
+		try {
+			List<PostResponse> result = this.postService.getRecentPostByCursor(cursorId, cursorTime);
+			return ResponseEntity.ok(result);
+		} catch (Exception e) {
+			System.out.printf("Catch Error /post/recent: " + e.getMessage());
+			return ResponseEntity.internalServerError().build();
+		}
+	}
 
-    @PostMapping("/feed")
-    public ResponseEntity<List<PostResponse>> requestFeedPostList(@RequestHeader("Authorization") String authorizationHeader, @RequestBody Map<String, String> body) {
-        int TOKEN_PREFIX_LENGTH = 7;
+	@PostMapping("/feed")
+	public ResponseEntity<List<PostResponse>> requestFeedPostList(
+			@AuthenticationPrincipal String userId,
+			@RequestBody Map<String, String> body
+	) {
+		String cursorId = body.get("postId");
+		OffsetDateTime requestCursor = body.get("createdAt") != null ? OffsetDateTime.parse(body.get("createdAt")) : null;
+		LocalDateTime cursorTime = requestCursor != null ? requestCursor.toLocalDateTime() : null;
 
-        if(authorizationHeader != null
-                && authorizationHeader.startsWith("Bearer ")
-                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
-            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+		List<PostResponse> result = this.postService.getFeedPostByCursor(userId, cursorId, cursorTime);
+		return ResponseEntity.ok(result);
+	}
 
-            String cursorId = (String) body.get("postId");
-            OffsetDateTime requestCursor = body.get("createdAt") != null ? OffsetDateTime.parse((String) body.get("createdAt")) : null;
-            LocalDateTime cursorTime = requestCursor != null ? requestCursor.toLocalDateTime() : null;
+	@GetMapping("/{postId}")
+	public ResponseEntity<PostResponse> requestPost(@PathVariable("postId") String postId) {
+		if (postId == null) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+		}
 
-            List<PostResponse> result = this.postService.getFeedPostByCursor(id, cursorId, cursorTime);
-            return ResponseEntity.ok(result);
-        }
+		PostResponse result = this.postService.getPostByPostId(postId);
+		return ResponseEntity.ok(result);
+	}
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
+	@PostMapping
+	public ResponseEntity<URI> requestCreatePost(
+			@AuthenticationPrincipal String userId,
+			@RequestBody Post.Content body
+	) {
+		PostCreateRequest requestDto = new PostCreateRequest(body);
+		requestDto.setInternalUserId(userId);
 
-    @GetMapping("/{postId}")
-    public ResponseEntity<PostResponse> requestPost(@PathVariable("postId") String postId) {
-        if(postId == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+		try {
+			URI relativeURI = this.postService.createPost(requestDto);
+			return ResponseEntity.created(relativeURI).build();
+		} catch (Exception e) {
+			System.out.printf("Catch post error: " + e.getMessage());
+			return ResponseEntity.internalServerError().build();
+		}
+	}
 
-        PostResponse result = this.postService.getPostByPostId(postId);
-        return ResponseEntity.ok(result);
-    }
+	@DeleteMapping("/{postId}")
+	public ResponseEntity<?> requestDeletePost(
+			@AuthenticationPrincipal String userId,
+			@PathVariable("postId") String postId
+	) {
+		if (postId == null) {
+			return ResponseEntity.badRequest().build();
+		}
 
-    @PostMapping
-    public ResponseEntity<URI> requestCreatePost(@RequestHeader("Authorization") String authorizationHeader, @RequestBody Post.Content body) {
-        int TOKEN_PREFIX_LENGTH = 7;
+		this.postService.deletePost(userId, postId);
+		return ResponseEntity.noContent().build();
+	}
 
-        if(authorizationHeader != null
-                && authorizationHeader.startsWith("Bearer ")
-                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
-            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+	@PostMapping("/{postId}/like")
+	public ResponseEntity<?> requestLikePost(
+			@AuthenticationPrincipal String userId,
+			@PathVariable("postId") String postId
+	) {
+		if (postId == null) {
+			return ResponseEntity.badRequest().build();
+		}
 
-            PostCreateRequest requestDto = new PostCreateRequest(body);
-            requestDto.setInternalUserId(id);
+		this.postService.likePost(userId, postId);
+		return ResponseEntity.ok().build();
+	}
 
-            try{
-                URI relativeURI = this.postService.createPost(requestDto);
-                return ResponseEntity.created(relativeURI).build();
-            } catch (Exception e) {
-                System.out.printf("Catch post error: " + e.getMessage());
-                return ResponseEntity.internalServerError().build();
-            }
-        }
+	@DeleteMapping("/{postId}/like")
+	public ResponseEntity<?> requestUnlikePost(
+			@AuthenticationPrincipal String userId,
+			@PathVariable("postId") String postId
+	) {
+		if (postId == null) {
+			return ResponseEntity.badRequest().build();
+		}
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
+		this.postService.unlikePost(userId, postId);
+		return ResponseEntity.ok().build();
+	}
 
-    @DeleteMapping("/{postId}")
-    public ResponseEntity<?> requestDeletePost(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("postId") String postId) {
-        int TOKEN_PREFIX_LENGTH = 7;
+	@PostMapping("/{postId}/scrap")
+	public ResponseEntity<URI> requestScrapPost(
+			@AuthenticationPrincipal String userId,
+			@PathVariable("postId") String postId
+	) {
+		if (postId == null) {
+			return ResponseEntity.badRequest().build();
+		}
 
-        if(postId == null) return ResponseEntity.badRequest().build();
-        if(authorizationHeader != null
-                && authorizationHeader.startsWith("Bearer ")
-                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
-            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
+		URI relativeURI = this.postService.scrapPost(userId, postId);
+		return ResponseEntity.created(relativeURI).build();
+	}
 
-            this.postService.deletePost(id, postId);
-            return ResponseEntity.noContent().build();
-        }
+	@PostMapping("/{postId}/report")
+	public ResponseEntity<?> requestReportPost(
+			@AuthenticationPrincipal String userId,
+			@PathVariable("postId") String postId
+	) {
+		if (postId == null) {
+			return ResponseEntity.badRequest().build();
+		}
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-
-    @PostMapping("/{postId}/like")
-    public ResponseEntity<?> requestLikePost(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("postId") String postId) {
-        int TOKEN_PREFIX_LENGTH = 7;
-
-        if(postId == null) return ResponseEntity.badRequest().build();
-        if(authorizationHeader != null
-                && authorizationHeader.startsWith("Bearer ")
-                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
-            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
-
-            this.postService.likePost(id, postId);
-            return ResponseEntity.ok().build();
-        }
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-
-    @DeleteMapping("/{postId}/like")
-    public ResponseEntity<?> requestUnlikePost(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("postId") String postId) {
-        int TOKEN_PREFIX_LENGTH = 7;
-
-        if(postId == null) return ResponseEntity.badRequest().build();
-        if(authorizationHeader != null
-                && authorizationHeader.startsWith("Bearer ")
-                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
-            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
-
-            this.postService.unlikePost(id, postId);
-            return ResponseEntity.ok().build();
-        }
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-
-    @PostMapping("/{postId}/scrap")
-    public ResponseEntity<URI> requestScrapPost(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("postId") String postId) {
-        int TOKEN_PREFIX_LENGTH = 7;
-
-        if(postId == null) return ResponseEntity.badRequest().build();
-        if(authorizationHeader != null
-                && authorizationHeader.startsWith("Bearer ")
-                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
-            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
-
-            URI relativeURI = this.postService.scrapPost(id, postId);
-            return ResponseEntity.created(relativeURI).build();
-        }
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-
-    @PostMapping("/{postId}/report")
-    public ResponseEntity<?> requestReportPost(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("postId") String postId) {
-        int TOKEN_PREFIX_LENGTH = 7;
-
-        if(postId == null) return ResponseEntity.badRequest().build();
-        if(authorizationHeader != null
-                && authorizationHeader.startsWith("Bearer ")
-                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
-            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
-
-            this.postService.reportPost(id, postId);
-            return ResponseEntity.ok().build();
-        }
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
+		this.postService.reportPost(userId, postId);
+		return ResponseEntity.ok().build();
+	}
 }
