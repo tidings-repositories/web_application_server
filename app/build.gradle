@@ -92,6 +92,6 @@ compileJava.dependsOn clean
 //	}
 //}
 
-//tasks.named('test') {
-//	useJUnitPlatform()
-//}
+tasks.named('test') {
+	useJUnitPlatform()
+}
