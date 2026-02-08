@@ -3,10 +3,17 @@ package com.delivalue.tidings.domain.comment.controller;
 import com.delivalue.tidings.domain.comment.dto.CommentCreateRequest;
 import com.delivalue.tidings.domain.comment.dto.CommentResponse;
 import com.delivalue.tidings.domain.comment.service.CommentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
 import java.util.List;
@@ -28,7 +35,7 @@ public class CommentController {
 	public ResponseEntity<URI> requestCreateComment(
 			@AuthenticationPrincipal String userId,
 			@PathVariable("postId") String postId,
-			@RequestBody CommentCreateRequest body
+			@Valid @RequestBody CommentCreateRequest body
 	) {
 		URI result = this.commentService.addComment(userId, postId, body);
 		return ResponseEntity.created(result).build();
@@ -39,7 +46,7 @@ public class CommentController {
 			@AuthenticationPrincipal String userId,
 			@PathVariable("postId") String postId,
 			@PathVariable("commentId") String commentId,
-			@RequestBody CommentCreateRequest body
+			@Valid @RequestBody CommentCreateRequest body
 	) {
 		URI result = this.commentService.addReply(userId, postId, commentId, body);
 		return ResponseEntity.created(result).build();

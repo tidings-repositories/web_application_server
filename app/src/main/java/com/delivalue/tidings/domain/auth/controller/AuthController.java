@@ -78,13 +78,19 @@ public class AuthController {
 		Map<String, Object> resource = principal.getAttributes();
 
 		if (validateResult.isResult() && resource != null) {
+			Object name = resource.get("name");
+			Object email = resource.get("email");
+			if (name == null || email == null) {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "필수 사용자 정보가 누락되었습니다.");
+			}
+
 			String registrationId = authToken.getAuthorizedClientRegistrationId();
 			String internalId = registrationId + "@" + resource.get("sub");
 			RegisterRequest newMemberData = new RegisterRequest(
 					internalId,
 					publicId,
-					resource.get("name").toString(),
-					resource.get("email").toString()
+					name.toString(),
+					email.toString()
 			);
 
 			LoginResponse response = authService.registerMember(newMemberData);

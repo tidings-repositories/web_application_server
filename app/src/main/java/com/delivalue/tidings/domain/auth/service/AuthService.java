@@ -58,37 +58,27 @@ public class AuthService {
 
     @Transactional
     public LoginResponse registerMember(RegisterRequest newMemberData) {
+        Optional<Member> existMember = this.memberRepository.findById(newMemberData.getInternalId());
 
-        try {
-            Optional<Member> existMember = this.memberRepository.findById(newMemberData.getInternalId());
+        if(existMember.isPresent()) {
+            Member member = existMember.get();
+            member.setDeletedAt(null);
+            this.memberRepository.save(member);
+        } else {
+            Member memberEntity = newMemberData.toEntity();
+            this.memberRepository.save(memberEntity);
 
-            if(existMember.isPresent()) {
-                Member member = existMember.get();
-                member.setDeletedAt(null);
-                this.memberRepository.save(member);
-            } else {
-                Member memberEntity = newMemberData.toEntity();
-                this.memberRepository.save(memberEntity);
-
-                Follow followEntity = new Follow(
-                        new FollowId(this.STELLAGRAM_OFFICIAL_ID, newMemberData.getInternalId()),
-                        LocalDateTime.now(ZoneId.of("Asia/Seoul")));
-                this.followRepository.save(followEntity);
-                this.memberRepository.increaseFollowerCount(this.STELLAGRAM_OFFICIAL_ID);
-            }
-
-            return LoginResponse.builder()
-                    .result("login")
-                    .refreshToken(this.tokenProvider.generateJWT(newMemberData.getInternalId(), "REFRESH"))
-                    .accessToken(this.tokenProvider.generateJWT(newMemberData.getInternalId(), "ACCESS")).build();
-        } catch (Exception e) {
-            System.out.printf("\nregister error catch:\n" + e.toString() + "\n\n");
-
-            return LoginResponse.builder()
-                    .result("failed")
-                    .refreshToken(null)
-                    .accessToken(null).build();
+            Follow followEntity = new Follow(
+                    new FollowId(this.STELLAGRAM_OFFICIAL_ID, newMemberData.getInternalId()),
+                    LocalDateTime.now(ZoneId.of("Asia/Seoul")));
+            this.followRepository.save(followEntity);
+            this.memberRepository.increaseFollowerCount(this.STELLAGRAM_OFFICIAL_ID);
         }
+
+        return LoginResponse.builder()
+                .result("login")
+                .refreshToken(this.tokenProvider.generateJWT(newMemberData.getInternalId(), "REFRESH"))
+                .accessToken(this.tokenProvider.generateJWT(newMemberData.getInternalId(), "ACCESS")).build();
     }
 
     @Transactional
@@ -97,7 +87,6 @@ public class AuthService {
         if(deleteMember.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
 
         Member member = deleteMember.get();
-        if(!internalId.equals(member.getId())) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         if(member.getDeletedAt() != null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 
         member.setDeletedAt(LocalDateTime.now(ZoneId.of("Asia/Seoul")));

@@ -2,15 +2,30 @@ package com.delivalue.tidings.common;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Map;
 
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+	@ExceptionHandler(MethodArgumentNotValidException.class)
+	public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException e) {
+		List<String> errors = e.getBindingResult().getFieldErrors().stream()
+				.map(field -> field.getField() + ": " + field.getDefaultMessage())
+				.toList();
+
+		return ResponseEntity.badRequest().body(Map.of(
+				"status", 400,
+				"message", "입력값 검증에 실패했습니다.",
+				"errors", errors
+		));
+	}
 
 	@ExceptionHandler(ResponseStatusException.class)
 	public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException e) {

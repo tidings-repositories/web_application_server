@@ -170,7 +170,7 @@ public class PostService {
     }
 
     public void deletePost(String internalId, String postId) {
-        Optional<Post> findPost = this.postRepository.findById(postId);
+        Optional<Post> findPost = this.postRepository.findByIdAndDeletedAtIsNull(postId);
         if(findPost.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
 
         Post post = findPost.get();
@@ -345,34 +345,40 @@ public class PostService {
         if(internalId.equals(post.getInternalUserId()) || member.getPublicId().equals(post.getOriginalUserId()))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
 
-        //스크랩 데이터 초기화
-        if(post.isOrigin()) {
-            post.setCreatedAt(LocalDateTime.now(ZoneId.of("Asia/Seoul")));
-            post.setOriginalPostId(post.getId());
-            post.setOriginalUserId(post.getUserId());
-            post.setOrigin(false);
-        }
-        post.setInternalUserId(internalId);
-        post.setUserId(member.getPublicId());
-        post.setId(UUID.randomUUID().toString());
-        post.setCommentCount(0);
+        //스크랩용 새 Post 객체 생성
+        Post scrap = Post.builder()
+                .id(UUID.randomUUID().toString())
+                .internalUserId(internalId)
+                .userId(member.getPublicId())
+                .userName(post.getUserName())
+                .profileImage(post.getProfileImage())
+                .badge(post.getBadge())
+                .content(post.getContent())
+                .originalPostId(post.isOrigin() ? post.getId() : post.getOriginalPostId())
+                .originalUserId(post.isOrigin() ? post.getUserId() : post.getOriginalUserId())
+                .isOrigin(false)
+                .createdAt(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
+                .commentCount(0)
+                .likeCount(0)
+                .scrapCount(0)
+                .build();
 
         //저장
         try {
-            this.postRepository.insert(post);
+            this.postRepository.insert(scrap);
         } catch (DuplicateKeyException e) {
             String newID = UUID.randomUUID().toString();
-            post.setId(newID);
-            this.postRepository.insert(post);
+            scrap.setId(newID);
+            this.postRepository.insert(scrap);
         }
 
         try {
             //Increase Post document scrap count
-            Query query = Query.query(Criteria.where("_id").is(post.getOriginalPostId()));
+            Query query = Query.query(Criteria.where("_id").is(scrap.getOriginalPostId()));
             Update update = new Update().inc("scrapCount", 1);
             this.mongoTemplate.updateFirst(query, update, Post.class);
         } catch (Exception e) {
-            this.postRepository.delete(post);
+            this.postRepository.delete(scrap);
             throw e;
         }
 
@@ -386,16 +392,16 @@ public class PostService {
             List<Feed> feeds = followers.stream().map(
                     thisFollower -> Feed.builder()
                             .internalUserId(thisFollower.getId())
-                            .postId(post.getId())
-                            .createdAt(post.getCreatedAt())
+                            .postId(scrap.getId())
+                            .createdAt(scrap.getCreatedAt())
                             .expiredAt(expiredAt).build()
             ).toList();
 
             this.feedRepository.insert(feeds);
 
-            return URI.create("/post/" + post.getId());
+            return URI.create("/post/" + scrap.getId());
         } catch (Exception e) {
-            return URI.create("/post/" + post.getId());
+            return URI.create("/post/" + scrap.getId());
         }
     }
 

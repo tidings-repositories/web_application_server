@@ -3,6 +3,7 @@ package com.delivalue.tidings.config;
 import com.delivalue.tidings.common.security.JwtAuthenticationEntryPoint;
 import com.delivalue.tidings.common.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +18,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
@@ -26,6 +28,9 @@ public class SecurityConfig {
 
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 	private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+
+	@Value("${spring.profiles.active:prod}")
+	private String activeProfile;
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -90,7 +95,16 @@ public class SecurityConfig {
 	@Bean
 	public FilterRegistrationBean<CorsFilter> corsConfigurationSource() {
 		CorsConfiguration configuration = new CorsConfiguration();
-		configuration.setAllowedOriginPatterns(List.of("https://stellagram.kr", "https://www.stellagram.kr", "http://localhost:5173"));
+
+		List<String> origins = new ArrayList<>(List.of(
+				"https://stellagram.kr",
+				"https://www.stellagram.kr"
+		));
+		if ("dev".equals(activeProfile) || "local".equals(activeProfile)) {
+			origins.add("http://localhost:5173");
+		}
+
+		configuration.setAllowedOriginPatterns(origins);
 		configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
 		configuration.setAllowedHeaders(List.of("*"));
 		configuration.setAllowCredentials(true);
