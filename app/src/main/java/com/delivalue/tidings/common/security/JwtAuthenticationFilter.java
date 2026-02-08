@@ -27,7 +27,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private static final List<String> EXCLUDE_PATHS = List.of(
 			"/oauth2/**",
-			"/login/oauth2/**"
+			"/login/oauth2/**",
+			"/auth/refresh"
 	);
 
 	private final TokenProvider tokenProvider;
@@ -47,11 +48,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	) throws ServletException, IOException {
 		String token = resolveToken(request);
 
-		if (StringUtils.hasText(token) && tokenProvider.validate(token)) {
-			String userId = tokenProvider.getUserId(token);
-			UsernamePasswordAuthenticationToken authentication =
-					new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
-			SecurityContextHolder.getContext().setAuthentication(authentication);
+		if (StringUtils.hasText(token)) {
+			tokenProvider.extractUserId(token).ifPresent(userId -> {
+				UsernamePasswordAuthenticationToken authentication =
+						new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
+				SecurityContextHolder.getContext().setAuthentication(authentication);
+			});
 		}
 
 		filterChain.doFilter(request, response);

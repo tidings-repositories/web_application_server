@@ -1,11 +1,17 @@
 package com.delivalue.tidings.domain.data.controller;
 
 import com.delivalue.tidings.common.RequestValidator;
+import com.delivalue.tidings.domain.data.dto.PostMediaUploadRequest;
+import com.delivalue.tidings.domain.data.dto.ProfileUploadRequest;
 import com.delivalue.tidings.domain.data.service.StorageService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URL;
 import java.util.ArrayList;
@@ -23,17 +29,13 @@ public class StorageController {
 	@PostMapping("/api/upload/profile")
 	public ResponseEntity<Map<String, String>> getProfileUploadUrl(
 			@AuthenticationPrincipal String userId,
-			@RequestBody Map<String, String> body
+			@Valid @RequestBody ProfileUploadRequest body
 	) {
-		String contentType = body.get("content-type");
-		if (body.isEmpty() || contentType == null) {
-			return ResponseEntity.badRequest().build();
-		}
-		if (!requestValidator.checkImageContentType(contentType)) {
+		if (!requestValidator.checkImageContentType(body.getContentType())) {
 			return ResponseEntity.badRequest().build();
 		}
 
-		URL presignedURL = storageService.getProfilePresignedUploadUrl(userId, contentType);
+		URL presignedURL = storageService.getProfilePresignedUploadUrl(userId, body.getContentType());
 
 		if (presignedURL != null) {
 			return ResponseEntity.ok(Map.of("presignedUrl", presignedURL.toString()));
@@ -45,27 +47,18 @@ public class StorageController {
 	@PostMapping("/api/upload/post")
 	public ResponseEntity<Map<String, List<String>>> getPostMediaUploadUrls(
 			@AuthenticationPrincipal String userId,
-			@RequestBody Map<String, List<String>> body
+			@Valid @RequestBody PostMediaUploadRequest body
 	) {
-		try {
-			List<String> contentTypeList = body.get("content-types");
-			if (body.isEmpty() || contentTypeList.isEmpty()) {
+		List<String> result = new ArrayList<>();
+		for (String contentType : body.getContentTypes()) {
+			if (!requestValidator.checkMediaContentType(contentType)) {
 				return ResponseEntity.badRequest().build();
 			}
 
-			List<String> result = new ArrayList<>();
-			for (String contentType : contentTypeList) {
-				if (!requestValidator.checkMediaContentType(contentType)) {
-					return ResponseEntity.badRequest().build();
-				}
-
-				URL presignedURL = storageService.getPostMediaPresignedUploadUrl(userId, contentType);
-				result.add(presignedURL.toString());
-			}
-
-			return ResponseEntity.ok(Map.of("presignedUrls", result));
-		} catch (Exception e) {
-			return ResponseEntity.badRequest().build();
+			URL presignedURL = storageService.getPostMediaPresignedUploadUrl(userId, contentType);
+			result.add(presignedURL.toString());
 		}
+
+		return ResponseEntity.ok(Map.of("presignedUrls", result));
 	}
 }

@@ -4,21 +4,29 @@ import com.delivalue.tidings.common.RequestValidator;
 import com.delivalue.tidings.domain.comment.dto.CommentResponse;
 import com.delivalue.tidings.domain.comment.service.CommentService;
 import com.delivalue.tidings.domain.follow.service.FollowService;
+import com.delivalue.tidings.domain.post.dto.CursorRequest;
 import com.delivalue.tidings.domain.post.dto.PostResponse;
 import com.delivalue.tidings.domain.post.service.PostService;
 import com.delivalue.tidings.domain.profile.dto.BadgeListResponse;
 import com.delivalue.tidings.domain.profile.dto.ProfileResponse;
+import com.delivalue.tidings.domain.profile.dto.ProfileUpdateBody;
 import com.delivalue.tidings.domain.profile.dto.ProfileUpdateRequest;
 import com.delivalue.tidings.domain.profile.service.ProfileService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/profile")
@@ -40,38 +48,27 @@ public class ProfileController {
 	@PatchMapping
 	public ResponseEntity<?> requestUpdateMyProfile(
 			@AuthenticationPrincipal String userId,
-			@RequestBody Map<String, Object> body
+			@RequestBody ProfileUpdateBody body
 	) {
-		String name = (String) body.get("user_name");
-		String bio = (String) body.get("bio");
-		String profileImage = (String) body.get("profile_image");
-		Integer badgeId = (Integer) body.get("badge");
-
-		boolean isValid = requestValidator.checkProfileUpdateParameter(name, bio, profileImage);
+		boolean isValid = requestValidator.checkProfileUpdateParameter(
+				body.getUserName(), body.getBio(), body.getProfileImage()
+		);
 		if (!isValid) {
 			return ResponseEntity.badRequest().build();
 		}
 
-		try {
-			ProfileUpdateRequest profileUpdateRequest = new ProfileUpdateRequest(userId, name, bio, profileImage, badgeId);
-			this.profileService.updateProfile(profileUpdateRequest);
+		ProfileUpdateRequest profileUpdateRequest = new ProfileUpdateRequest(
+				userId, body.getUserName(), body.getBio(), body.getProfileImage(), body.getBadge()
+		);
+		this.profileService.updateProfile(profileUpdateRequest);
 
-			return ResponseEntity.ok().build();
-		} catch (Exception e) {
-			System.out.printf("profile update catch: " + e);
-			return ResponseEntity.internalServerError().build();
-		}
+		return ResponseEntity.ok().build();
 	}
 
 	@GetMapping("/badge")
 	public ResponseEntity<BadgeListResponse> requestMyBadgeList(@AuthenticationPrincipal String userId) {
-		try {
-			BadgeListResponse badgeListResponse = this.profileService.getBadgeListById(userId);
-			return ResponseEntity.ok(badgeListResponse);
-		} catch (Exception e) {
-			System.out.printf("badge get catch: " + e);
-			return ResponseEntity.internalServerError().build();
-		}
+		BadgeListResponse badgeListResponse = this.profileService.getBadgeListById(userId);
+		return ResponseEntity.ok(badgeListResponse);
 	}
 
 	@GetMapping("/{publicId}")
@@ -82,34 +79,25 @@ public class ProfileController {
 
 	@GetMapping("/{publicId}/followings")
 	public ResponseEntity<List<ProfileResponse>> requestFollowingList(@PathVariable("publicId") String publicId) {
-		try {
-			List<ProfileResponse> followingList = this.followService.getFollowingList(publicId);
-			return ResponseEntity.ok(followingList);
-		} catch (Exception e) {
-			return ResponseEntity.internalServerError().build();
-		}
+		List<ProfileResponse> followingList = this.followService.getFollowingList(publicId);
+		return ResponseEntity.ok(followingList);
 	}
 
 	@GetMapping("/{publicId}/followers")
 	public ResponseEntity<List<ProfileResponse>> requestFollowerList(@PathVariable("publicId") String publicId) {
-		try {
-			List<ProfileResponse> followingList = this.followService.getFollowerList(publicId);
-			return ResponseEntity.ok(followingList);
-		} catch (Exception e) {
-			return ResponseEntity.internalServerError().build();
-		}
+		List<ProfileResponse> followingList = this.followService.getFollowerList(publicId);
+		return ResponseEntity.ok(followingList);
 	}
 
 	@PostMapping("/{publicId}/posts")
 	public ResponseEntity<List<PostResponse>> requestUserPostList(
 			@PathVariable("publicId") String publicId,
-			@RequestBody Map<String, String> body
+			@RequestBody CursorRequest body
 	) {
-		OffsetDateTime requestCursor = body.get("createdAt") != null ? OffsetDateTime.parse(body.get("createdAt")) : null;
-		if (publicId == null || requestCursor == null) {
-			return ResponseEntity.badRequest().build();
+		if (body.getCreatedAt() == null) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 		}
-		LocalDateTime cursorTime = requestCursor.toLocalDateTime();
+		LocalDateTime cursorTime = body.getCreatedAt().toLocalDateTime();
 
 		List<PostResponse> result = this.postService.getUserPostByCursor(publicId, cursorTime);
 		return ResponseEntity.ok(result);
@@ -118,13 +106,12 @@ public class ProfileController {
 	@PostMapping("/{publicId}/comments")
 	public ResponseEntity<List<CommentResponse>> requestUserCommentList(
 			@PathVariable("publicId") String publicId,
-			@RequestBody Map<String, String> body
+			@RequestBody CursorRequest body
 	) {
-		OffsetDateTime requestCursor = body.get("createdAt") != null ? OffsetDateTime.parse(body.get("createdAt")) : null;
-		if (publicId == null || requestCursor == null) {
-			return ResponseEntity.badRequest().build();
+		if (body.getCreatedAt() == null) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 		}
-		LocalDateTime cursorTime = requestCursor.toLocalDateTime();
+		LocalDateTime cursorTime = body.getCreatedAt().toLocalDateTime();
 
 		List<CommentResponse> result = this.commentService.getUserCommentByCursor(publicId, cursorTime);
 		return ResponseEntity.ok(result);
@@ -133,16 +120,14 @@ public class ProfileController {
 	@PostMapping("/{publicId}/likes")
 	public ResponseEntity<List<PostResponse>> requestUserLikePost(
 			@PathVariable("publicId") String publicId,
-			@RequestBody Map<String, String> body
+			@RequestBody CursorRequest body
 	) {
-		OffsetDateTime requestCursor = body.get("createdAt") != null ? OffsetDateTime.parse(body.get("createdAt")) : null;
-		if (publicId == null || requestCursor == null) {
-			return ResponseEntity.badRequest().build();
+		if (body.getCreatedAt() == null) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 		}
-		LocalDateTime cursorTime = requestCursor.toLocalDateTime();
-		String cursorId = body.get("postId");
+		LocalDateTime cursorTime = body.getCreatedAt().toLocalDateTime();
 
-		List<PostResponse> result = this.postService.getUserLikePostByCursor(publicId, cursorTime, cursorId);
+		List<PostResponse> result = this.postService.getUserLikePostByCursor(publicId, cursorTime, body.getPostId());
 		return ResponseEntity.ok(result);
 	}
 }

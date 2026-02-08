@@ -1,13 +1,13 @@
 package com.delivalue.tidings.domain.post.dto;
 
 import com.delivalue.tidings.domain.data.entity.Post;
-import com.delivalue.tidings.domain.data.entity.interfaces.PostMediaStructure;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,19 +27,26 @@ public class PostCreateRequest {
     private Integer scrapCount;
     private boolean isOrigin;
 
-    public PostCreateRequest(Post.Content requestBody) {
-        if(!requestBody.getMedia().isEmpty()) {
+    public PostCreateRequest(PostContentRequest requestBody) {
+        Post.Content postContent = new Post.Content();
+        postContent.setText(requestBody.getText());
+        postContent.setTag(requestBody.getTag());
+
+        List<Post.PostMedia> mediaList = new ArrayList<>();
+        if (requestBody.getMedia() != null) {
             String CDN_ORIGIN = "https://cdn.stellagram.kr";
-            List<PostMediaStructure> mediaList = requestBody.getMedia();
-            mediaList.forEach(media -> {
-                String beforeProcessUrl = media.getUrl();
-                String path = URI.create(beforeProcessUrl).getPath();
-                media.setUrl(CDN_ORIGIN + path);
-            });
+            for (PostContentRequest.PostMediaItem item : requestBody.getMedia()) {
+                Post.PostMedia postMedia = new Post.PostMedia();
+                postMedia.setType(item.getType());
+                String path = URI.create(item.getUrl()).getPath();
+                postMedia.setUrl(CDN_ORIGIN + path);
+                mediaList.add(postMedia);
+            }
         }
+        postContent.setMedia(mediaList);
 
         this.id = UUID.randomUUID().toString();
-        this.content = requestBody;
+        this.content = postContent;
         this.createdAt = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
         this.commentCount = 0;
         this.likeCount = 0;

@@ -41,7 +41,7 @@ public class SecurityConfig {
 						.requestMatchers("/auth/login", "/auth/register", "/auth/check").permitAll()
 
 						// 인증 불필요 - Post
-						.requestMatchers("/post/recent").permitAll()
+						.requestMatchers(HttpMethod.POST, "/post/recent").permitAll()
 						.requestMatchers(HttpMethod.GET, "/post/{postId}").permitAll()
 
 						// 인증 불필요 - Comment
@@ -75,10 +75,11 @@ public class SecurityConfig {
 						.requestMatchers("/coupon/**").authenticated()
 						.requestMatchers("/storage/**").authenticated()
 						.requestMatchers("/search/**").authenticated()
-						.requestMatchers("/auth/refresh", "/auth/account").authenticated()
+						.requestMatchers("/auth/refresh").permitAll()
+						.requestMatchers("/auth/account").authenticated()
 
 						// 나머지 요청
-						.anyRequest().permitAll()
+						.anyRequest().authenticated()
 				)
 				.oauth2Login(login -> login.defaultSuccessUrl("/signInEvent.html"))
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

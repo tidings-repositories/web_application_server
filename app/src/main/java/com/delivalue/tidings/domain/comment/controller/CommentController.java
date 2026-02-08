@@ -20,10 +20,6 @@ public class CommentController {
 
 	@GetMapping("/{postId}")
 	public ResponseEntity<List<CommentResponse>> requestGetPostComment(@PathVariable("postId") String postId) {
-		if (postId == null) {
-			return ResponseEntity.badRequest().build();
-		}
-
 		List<CommentResponse> result = this.commentService.getPostComment(postId);
 		return ResponseEntity.ok(result);
 	}
@@ -34,10 +30,6 @@ public class CommentController {
 			@PathVariable("postId") String postId,
 			@RequestBody CommentCreateRequest body
 	) {
-		if (postId == null) {
-			return ResponseEntity.badRequest().build();
-		}
-
 		URI result = this.commentService.addComment(userId, postId, body);
 		return ResponseEntity.created(result).build();
 	}
@@ -49,10 +41,6 @@ public class CommentController {
 			@PathVariable("commentId") String commentId,
 			@RequestBody CommentCreateRequest body
 	) {
-		if (postId == null || commentId == null) {
-			return ResponseEntity.badRequest().build();
-		}
-
 		URI result = this.commentService.addReply(userId, postId, commentId, body);
 		return ResponseEntity.created(result).build();
 	}
@@ -62,10 +50,6 @@ public class CommentController {
 			@AuthenticationPrincipal String userId,
 			@PathVariable("commentId") String commentId
 	) {
-		if (commentId == null) {
-			return ResponseEntity.badRequest().build();
-		}
-
 		this.commentService.deleteComment(userId, commentId);
 		return ResponseEntity.noContent().build();
 	}
@@ -75,10 +59,6 @@ public class CommentController {
 			@AuthenticationPrincipal String userId,
 			@PathVariable("commentId") String commentId
 	) {
-		if (commentId == null) {
-			return ResponseEntity.badRequest().build();
-		}
-
 		this.commentService.reportComment(userId, commentId);
 		return ResponseEntity.ok().build();
 	}

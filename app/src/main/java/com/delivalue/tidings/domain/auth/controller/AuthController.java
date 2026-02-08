@@ -3,15 +3,25 @@ package com.delivalue.tidings.domain.auth.controller;
 import com.delivalue.tidings.common.TokenProvider;
 import com.delivalue.tidings.domain.auth.dto.LoginResponse;
 import com.delivalue.tidings.domain.auth.dto.PublicIdValidateResponse;
+import com.delivalue.tidings.domain.auth.dto.RegisterPublicIdRequest;
 import com.delivalue.tidings.domain.auth.dto.RegisterRequest;
 import com.delivalue.tidings.domain.auth.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 
@@ -61,14 +71,13 @@ public class AuthController {
 	public ResponseEntity<LoginResponse> register(
 			OAuth2AuthenticationToken authToken,
 			@AuthenticationPrincipal OAuth2User principal,
-			@RequestBody Map<String, String> body
+			@Valid @RequestBody RegisterPublicIdRequest body
 	) {
-		String publicId = body.get("publicId");
+		String publicId = body.getPublicId();
 		PublicIdValidateResponse validateResult = authService.checkPublicIdUsable(publicId);
 		Map<String, Object> resource = principal.getAttributes();
 
 		if (validateResult.isResult() && resource != null) {
-			LoginResponse response;
 			String registrationId = authToken.getAuthorizedClientRegistrationId();
 			String internalId = registrationId + "@" + resource.get("sub");
 			RegisterRequest newMemberData = new RegisterRequest(
@@ -78,12 +87,7 @@ public class AuthController {
 					resource.get("email").toString()
 			);
 
-			try {
-				response = authService.registerMember(newMemberData);
-			} catch (Exception e) {
-				return ResponseEntity.internalServerError().build();
-			}
-
+			LoginResponse response = authService.registerMember(newMemberData);
 			return ResponseEntity.ok(response);
 		} else {
 			return ResponseEntity.badRequest().build();
@@ -91,15 +95,23 @@ public class AuthController {
 	}
 
 	@GetMapping("/refresh")
-	public ResponseEntity<LoginResponse> refresh(@AuthenticationPrincipal String userId) {
-		LoginResponse.LoginResponseBuilder response = LoginResponse.builder();
+	public ResponseEntity<LoginResponse> refresh(HttpServletRequest request) {
+		String bearerToken = request.getHeader("Authorization");
+		if (bearerToken == null || !bearerToken.startsWith("Bearer ")) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+		}
 
-		response
+		String token = bearerToken.substring(7);
+		String userId = tokenProvider.extractRefreshUserId(token)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+
+		LoginResponse response = LoginResponse.builder()
 				.result("refresh")
 				.refreshToken(null)
-				.accessToken(this.tokenProvider.generateJWT(userId, "ACCESS"));
+				.accessToken(this.tokenProvider.generateJWT(userId, "ACCESS"))
+				.build();
 
-		return ResponseEntity.ok(response.build());
+		return ResponseEntity.ok(response);
 	}
 
 	@DeleteMapping("/account")
