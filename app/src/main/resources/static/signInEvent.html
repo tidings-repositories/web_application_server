@@ -8,7 +8,7 @@
       const data = await res.json();
 
       if (window.opener) {
-        const origins = ['https://stellagram.kr', 'https://www.stellagram.kr'];
+        const origins = ['https://stellagram.kr', 'https://www.stellagram.kr', 'https://dev.stellagram.kr'];
         try {
           origins.forEach((origin) => {
             window.opener.postMessage(data, origin);
