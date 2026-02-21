@@ -44,6 +44,7 @@ public class SecurityConfig {
 
 						// 인증 불필요 - Auth
 						.requestMatchers("/auth/login", "/auth/register", "/auth/check").permitAll()
+						.requestMatchers("/signInEvent.html").permitAll()
 
 						// 인증 불필요 - Post
 						.requestMatchers(HttpMethod.POST, "/post/recent").permitAll()
