@@ -29,6 +29,9 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(ResponseStatusException.class)
 	public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException e) {
+		if (e.getStatusCode().is5xxServerError()) {
+			log.error("Server error: {}", e.getReason(), e);
+		}
 		return ResponseEntity.status(e.getStatusCode()).body(Map.of(
 				"status", e.getStatusCode().value(),
 				"message", e.getReason() != null ? e.getReason() : "Error"
