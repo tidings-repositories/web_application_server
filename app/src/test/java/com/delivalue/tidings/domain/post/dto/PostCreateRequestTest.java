@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,7 +57,7 @@ class PostCreateRequestTest {
 			assertThat(createRequest.getContent().getTag()).containsExactly("tag1", "tag2");
 			assertThat(createRequest.getContent().getMedia()).isEmpty();
 			assertThat(createRequest.getCreatedAt()).isNotNull();
-			assertThat(createRequest.getCreatedAt()).isBefore(LocalDateTime.now().plusMinutes(1));
+			assertThat(createRequest.getCreatedAt()).isBefore(LocalDateTime.now(ZoneId.of("Asia/Seoul")).plusMinutes(1));
 			assertThat(createRequest.getCommentCount()).isEqualTo(0);
 			assertThat(createRequest.getLikeCount()).isEqualTo(0);
 			assertThat(createRequest.getScrapCount()).isEqualTo(0);
