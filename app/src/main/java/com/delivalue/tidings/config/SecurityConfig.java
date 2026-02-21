@@ -101,6 +101,7 @@ public class SecurityConfig {
 				"https://www.stellagram.kr"
 		));
 		if ("dev".equals(activeProfile) || "local".equals(activeProfile)) {
+			origins.add("https://dev.stellagram.kr");
 			origins.add("http://localhost:5173");
 		}
 
