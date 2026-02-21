@@ -60,9 +60,9 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.POST, "/post").authenticated()
 						.requestMatchers(HttpMethod.DELETE, "/post/**").authenticated()
 						.requestMatchers("/post/feed").authenticated()
-						.requestMatchers("/post/**/like").authenticated()
-						.requestMatchers("/post/**/scrap").authenticated()
-						.requestMatchers("/post/**/report").authenticated()
+						.requestMatchers("/post/*/like").authenticated()
+						.requestMatchers("/post/*/scrap").authenticated()
+						.requestMatchers("/post/*/report").authenticated()
 
 						// 인증 필요 - Comment
 						.requestMatchers(HttpMethod.POST, "/comment/**").authenticated()
