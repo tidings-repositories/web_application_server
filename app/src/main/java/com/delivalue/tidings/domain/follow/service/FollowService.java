@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -29,7 +29,7 @@ public class FollowService {
         if(followingUser == null || followerId.equals(followingUser.getId())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 
         FollowId id = new FollowId(followingUser.getId(), followerId);
-        Follow followEntity = Follow.builder().id(id).createdAt(LocalDateTime.now(ZoneId.of("Asia/Seoul"))).build();
+        Follow followEntity = Follow.builder().id(id).createdAt(LocalDateTime.now(ZoneOffset.UTC)).build();
         boolean exists = this.followRepository.existsById(id);
         if(!exists) {
             this.followRepository.save(followEntity);
