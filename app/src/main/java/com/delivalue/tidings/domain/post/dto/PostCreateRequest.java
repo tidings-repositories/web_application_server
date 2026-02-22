@@ -6,7 +6,7 @@ import lombok.Setter;
 
 import java.net.URI;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -47,7 +47,7 @@ public class PostCreateRequest {
 
         this.id = UUID.randomUUID().toString();
         this.content = postContent;
-        this.createdAt = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
+        this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
         this.commentCount = 0;
         this.likeCount = 0;
         this.scrapCount = 0;

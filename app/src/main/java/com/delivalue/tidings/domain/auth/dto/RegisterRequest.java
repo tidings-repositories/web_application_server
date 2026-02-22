@@ -4,7 +4,7 @@ import com.delivalue.tidings.domain.data.entity.Member;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 @Getter
 public class RegisterRequest {
@@ -31,7 +31,7 @@ public class RegisterRequest {
                 .email(this.email)
                 .followerCount(0)
                 .followingCount(1) //stellagram official
-                .createdAt(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
+                .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .deletedAt(null)
                 .build();
     }

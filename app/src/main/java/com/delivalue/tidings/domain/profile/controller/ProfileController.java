@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @RestController
@@ -97,7 +98,7 @@ public class ProfileController {
 		if (body.getCreatedAt() == null) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 		}
-		LocalDateTime cursorTime = body.getCreatedAt().toLocalDateTime();
+		LocalDateTime cursorTime = body.getCreatedAt().atZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
 
 		List<PostResponse> result = this.postService.getUserPostByCursor(publicId, cursorTime);
 		return ResponseEntity.ok(result);
@@ -111,7 +112,7 @@ public class ProfileController {
 		if (body.getCreatedAt() == null) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 		}
-		LocalDateTime cursorTime = body.getCreatedAt().toLocalDateTime();
+		LocalDateTime cursorTime = body.getCreatedAt().atZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
 
 		List<CommentResponse> result = this.commentService.getUserCommentByCursor(publicId, cursorTime);
 		return ResponseEntity.ok(result);
@@ -125,7 +126,7 @@ public class ProfileController {
 		if (body.getCreatedAt() == null) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 		}
-		LocalDateTime cursorTime = body.getCreatedAt().toLocalDateTime();
+		LocalDateTime cursorTime = body.getCreatedAt().atZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
 
 		List<PostResponse> result = this.postService.getUserLikePostByCursor(publicId, cursorTime, body.getPostId());
 		return ResponseEntity.ok(result);
