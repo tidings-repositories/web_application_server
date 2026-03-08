@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 @Service
@@ -32,7 +32,7 @@ public class CouponService {
         Optional<Badge> findBadge = this.badgeRepository.findById(badgeId);
         if(findBadge.isEmpty()) throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
 
-        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
         MemberBadge memberBadge = MemberBadge.builder()
                 .memberId(internalId)
@@ -53,7 +53,7 @@ public class CouponService {
 
         Coupon coupon = findCoupon.get();
 
-        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         if(coupon.getIssuedAt().isAfter(now) || coupon.getExpiredAt().isBefore(now)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
 
         CouponLogId logId = new CouponLogId(internalId, couponNumber);

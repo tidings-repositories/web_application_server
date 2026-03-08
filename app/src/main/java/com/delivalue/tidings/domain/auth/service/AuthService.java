@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 @Service
@@ -70,7 +70,7 @@ public class AuthService {
 
             Follow followEntity = new Follow(
                     new FollowId(this.STELLAGRAM_OFFICIAL_ID, newMemberData.getInternalId()),
-                    LocalDateTime.now(ZoneId.of("Asia/Seoul")));
+                    LocalDateTime.now(ZoneOffset.UTC));
             this.followRepository.save(followEntity);
             this.memberRepository.increaseFollowerCount(this.STELLAGRAM_OFFICIAL_ID);
         }
@@ -89,7 +89,7 @@ public class AuthService {
         Member member = deleteMember.get();
         if(member.getDeletedAt() != null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
 
-        member.setDeletedAt(LocalDateTime.now(ZoneId.of("Asia/Seoul")));
+        member.setDeletedAt(LocalDateTime.now(ZoneOffset.UTC));
         this.memberRepository.save(member);
     }
 }

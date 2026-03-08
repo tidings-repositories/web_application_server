@@ -19,7 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -84,7 +84,7 @@ public class CommentService {
                 .postId(postId).internalUserId(internalId)
                 .userId(member.getPublicId()).userName(member.getName())
                 .profileImage(member.getProfileImage()).text(body.getText())
-                .createdAt(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
+                .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .isRoot(true);
 
         Badge profileBadge = member.getBadge();
@@ -123,7 +123,7 @@ public class CommentService {
                 .postId(postId).internalUserId(internalId)
                 .userId(member.getPublicId()).userName(member.getName())
                 .profileImage(member.getProfileImage()).text(body.getText())
-                .createdAt(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
+                .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .isRoot(false).rootCommentId(new ObjectId(commentId));
 
         Badge profileBadge = member.getBadge();
@@ -159,7 +159,7 @@ public class CommentService {
         if(!internalId.equals(comment.getInternalUserId())) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
 
         Query query = Query.query(Criteria.where("_id").is(id));
-        Update update = new Update().set("deletedAt", LocalDateTime.now(ZoneId.of("Asia/Seoul")));
+        Update update = new Update().set("deletedAt", LocalDateTime.now(ZoneOffset.UTC));
         this.mongoTemplate.updateFirst(query, update, Comment.class);
 
         try {
@@ -178,7 +178,7 @@ public class CommentService {
                 .targetType("comment")
                 .targetId(commentId)
                 .reportUser(internalId)
-                .reportAt(LocalDateTime.now(ZoneId.of("Asia/Seoul"))).build();
+                .reportAt(LocalDateTime.now(ZoneOffset.UTC)).build();
 
         this.reportRepository.insert(report);
     }

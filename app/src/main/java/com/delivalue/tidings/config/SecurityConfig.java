@@ -36,54 +36,17 @@ public class SecurityConfig {
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http
 				.csrf(csrf -> csrf.disable())
-				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 				.exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
 				.authorizeHttpRequests(requests -> requests
-						// OAuth2 관련 경로
 						.requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-
-						// 인증 불필요 - Auth
-						.requestMatchers("/auth/login", "/auth/register", "/auth/check").permitAll()
-
-						// 인증 불필요 - Post
+						.requestMatchers("/auth/login", "/auth/register", "/auth/refresh", "/auth/check").permitAll()
+						.requestMatchers("/signInEvent.html").permitAll()
 						.requestMatchers(HttpMethod.POST, "/post/recent").permitAll()
 						.requestMatchers(HttpMethod.GET, "/post/{postId}").permitAll()
-
-						// 인증 불필요 - Comment
 						.requestMatchers(HttpMethod.GET, "/comment/{postId}").permitAll()
-
-						// 인증 불필요 - Profile (공개 프로필)
 						.requestMatchers("/profile/{publicId}").permitAll()
 						.requestMatchers("/profile/{publicId}/**").permitAll()
-
-						// 인증 필요 - Post
-						.requestMatchers(HttpMethod.POST, "/post").authenticated()
-						.requestMatchers(HttpMethod.DELETE, "/post/**").authenticated()
-						.requestMatchers("/post/feed").authenticated()
-						.requestMatchers("/post/*/like").authenticated()
-						.requestMatchers("/post/*/scrap").authenticated()
-						.requestMatchers("/post/*/report").authenticated()
-
-						// 인증 필요 - Comment
-						.requestMatchers(HttpMethod.POST, "/comment/**").authenticated()
-						.requestMatchers(HttpMethod.DELETE, "/comment/**").authenticated()
-
-						// 인증 필요 - Follow
-						.requestMatchers("/follow/**").authenticated()
-
-						// 인증 필요 - Profile (내 프로필)
-						.requestMatchers(HttpMethod.GET, "/profile").authenticated()
-						.requestMatchers(HttpMethod.PATCH, "/profile").authenticated()
-						.requestMatchers("/profile/badge").authenticated()
-
-						// 인증 필요 - 기타
-						.requestMatchers("/coupon/**").authenticated()
-						.requestMatchers("/storage/**").authenticated()
-						.requestMatchers("/search/**").authenticated()
-						.requestMatchers("/auth/refresh").permitAll()
-						.requestMatchers("/auth/account").authenticated()
-
-						// 나머지 요청
 						.anyRequest().authenticated()
 				)
 				.oauth2Login(login -> login.defaultSuccessUrl("/signInEvent.html"))
@@ -101,6 +64,7 @@ public class SecurityConfig {
 				"https://www.stellagram.kr"
 		));
 		if ("dev".equals(activeProfile) || "local".equals(activeProfile)) {
+			origins.add("https://dev.stellagram.kr");
 			origins.add("http://localhost:5173");
 		}
 

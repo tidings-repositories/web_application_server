@@ -18,7 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -177,7 +177,7 @@ public class PostService {
         if(!internalId.equals(post.getInternalUserId()) &&
                 !internalId.equals(this.STELLAGRAM_OFFICIAL_ID)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
 
-        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
         Query query = Query.query(Criteria.where("_id").is(postId));
         Update update = new Update().set("deletedAt", now).set("scrapCount", 0);
@@ -220,7 +220,7 @@ public class PostService {
                 .likeUserId(member.getPublicId())
                 .postId(postId)
                 .postCreatedAt(post.getCreatedAt())
-                .likeAt(LocalDateTime.now(ZoneId.of("Asia/Seoul"))).build();
+                .likeAt(LocalDateTime.now(ZoneOffset.UTC)).build();
 
         this.postLikeRepository.insert(newLikeEntity);
 
@@ -324,7 +324,7 @@ public class PostService {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN);
 
             //만약 스크랩 이력이 있지만, 삭제했었다면 삭제 취소
-            presentScrap.setCreatedAt(LocalDateTime.now(ZoneId.of("Asia/Seoul")));
+            presentScrap.setCreatedAt(LocalDateTime.now(ZoneOffset.UTC));
             presentScrap.setDeletedAt(null);
             this.postRepository.save(presentScrap);
 
@@ -333,7 +333,7 @@ public class PostService {
                 Update update = new Update().inc("scrapCount", 1);
                 this.mongoTemplate.updateFirst(query, update, Post.class);
             } catch (Exception e) {
-                presentScrap.setDeletedAt(LocalDateTime.now(ZoneId.of("Asia/Seoul")));
+                presentScrap.setDeletedAt(LocalDateTime.now(ZoneOffset.UTC));
                 this.postRepository.save(presentScrap);
                 throw e;
             }
@@ -357,7 +357,7 @@ public class PostService {
                 .originalPostId(post.isOrigin() ? post.getId() : post.getOriginalPostId())
                 .originalUserId(post.isOrigin() ? post.getUserId() : post.getOriginalUserId())
                 .isOrigin(false)
-                .createdAt(LocalDateTime.now(ZoneId.of("Asia/Seoul")))
+                .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .commentCount(0)
                 .likeCount(0)
                 .scrapCount(0)
@@ -410,7 +410,7 @@ public class PostService {
                 .targetType("post")
                 .targetId(postId)
                 .reportUser(internalId)
-                .reportAt(LocalDateTime.now(ZoneId.of("Asia/Seoul"))).build();
+                .reportAt(LocalDateTime.now(ZoneOffset.UTC)).build();
 
         this.reportRepository.insert(report);
     }
