@@ -1,12 +1,12 @@
 package com.delivalue.tidings.domain.search.controller;
 
-import com.delivalue.tidings.common.TokenProvider;
 import com.delivalue.tidings.domain.post.dto.PostResponse;
 import com.delivalue.tidings.domain.profile.dto.ProfileResponse;
 import com.delivalue.tidings.domain.search.service.SearchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -16,40 +16,32 @@ import java.util.List;
 @RequestMapping("/search")
 @RequiredArgsConstructor
 public class SearchController {
-    private final SearchService searchService;
-    private final TokenProvider tokenProvider;
 
-    @GetMapping("/user")
-    public ResponseEntity<List<ProfileResponse>> requestSearchUser(@RequestHeader("Authorization") String authorizationHeader, @RequestParam(value = "q") String keyword) {
-        int TOKEN_PREFIX_LENGTH = 7;
+	private final SearchService searchService;
 
-        if(keyword == null || keyword.length() < 2) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-        if(authorizationHeader != null
-                && authorizationHeader.startsWith("Bearer ")
-                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
+	@GetMapping("/user")
+	public ResponseEntity<List<ProfileResponse>> requestSearchUser(
+			@AuthenticationPrincipal String userId,
+			@RequestParam(value = "q") String keyword
+	) {
+		if (keyword == null || keyword.length() < 2) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+		}
 
-            List<ProfileResponse> result = this.searchService.getProfileBySearchKeyword(keyword);
+		List<ProfileResponse> result = this.searchService.getProfileBySearchKeyword(keyword);
+		return ResponseEntity.ok(result);
+	}
 
-            return ResponseEntity.ok(result);
-        }
+	@GetMapping("/post")
+	public ResponseEntity<List<PostResponse>> requestSearchPost(
+			@AuthenticationPrincipal String userId,
+			@RequestParam(value = "q") String keyword
+	) {
+		if (keyword == null || keyword.length() < 2) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+		}
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-
-    @GetMapping("/post")
-    public ResponseEntity<List<PostResponse>> requestSearchPost(@RequestHeader("Authorization") String authorizationHeader, @RequestParam(value = "q") String keyword) {
-        int TOKEN_PREFIX_LENGTH = 7;
-
-        if(keyword == null || keyword.length() < 2) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-        if(authorizationHeader != null
-                && authorizationHeader.startsWith("Bearer ")
-                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
-
-            List<PostResponse> result = this.searchService.getPostBySearchKeyword(keyword);
-
-            return ResponseEntity.ok(result);
-        }
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
+		List<PostResponse> result = this.searchService.getPostBySearchKeyword(keyword);
+		return ResponseEntity.ok(result);
+	}
 }

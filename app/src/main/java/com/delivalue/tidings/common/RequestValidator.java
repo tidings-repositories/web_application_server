@@ -9,10 +9,16 @@ public class RequestValidator {
     private String bucket;
 
     public boolean checkImageContentType(String contentType) {
+        if (contentType == null) {
+            return false;
+        }
         return contentType.startsWith("image/") && !contentType.contains("gif");
     }
 
     public boolean checkMediaContentType(String contentType) {
+        if (contentType == null) {
+            return false;
+        }
         return contentType.startsWith("image/") || contentType.startsWith("video/");
     }
 

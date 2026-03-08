@@ -1,65 +1,40 @@
 package com.delivalue.tidings.domain.follow.controller;
 
-import com.delivalue.tidings.common.TokenProvider;
+import com.delivalue.tidings.domain.follow.dto.FollowRequest;
 import com.delivalue.tidings.domain.follow.service.FollowService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.util.Map;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/follow")
 @RequiredArgsConstructor
 public class FollowController {
-    private final FollowService followService;
-    private final TokenProvider tokenProvider;
 
-    @PostMapping("/request")
-    public ResponseEntity<?> requestFollowUser(@RequestHeader("Authorization") String authorizationHeader, @RequestBody Map<String, Object> body) {
-        int TOKEN_PREFIX_LENGTH = 7;
+	private final FollowService followService;
 
-        if(authorizationHeader != null
-                && authorizationHeader.startsWith("Bearer ")
-                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
-            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
-            String followingUserPublicId = (String) body.get("follow");
-            if(followingUserPublicId == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+	@PostMapping("/request")
+	public ResponseEntity<?> requestFollowUser(
+			@AuthenticationPrincipal String userId,
+			@Valid @RequestBody FollowRequest body
+	) {
+		this.followService.addFollowUser(userId, body.getFollow());
+		return ResponseEntity.ok().build();
+	}
 
-            try {
-                this.followService.addFollowUser(id, followingUserPublicId);
-
-                return ResponseEntity.ok().build();
-            } catch (Exception e) {
-                return ResponseEntity.internalServerError().build();
-            }
-        }
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-
-    @DeleteMapping("/{publicId}")
-    public ResponseEntity<?> removeFollowUser(@RequestHeader("Authorization") String authorizationHeader, @PathVariable("publicId") String followingUserPublicId) {
-        int TOKEN_PREFIX_LENGTH = 7;
-
-        if(authorizationHeader != null
-                && authorizationHeader.startsWith("Bearer ")
-                && this.tokenProvider.validate(authorizationHeader.substring(TOKEN_PREFIX_LENGTH))) {
-            String id = this.tokenProvider.getUserId(authorizationHeader.substring(TOKEN_PREFIX_LENGTH));
-
-            if(followingUserPublicId == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-
-            try {
-                this.followService.removeFollowUser(id, followingUserPublicId);
-
-                return ResponseEntity.ok().build();
-            } catch (Exception e) {
-                return ResponseEntity.internalServerError().build();
-            }
-        }
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
+	@DeleteMapping("/{publicId}")
+	public ResponseEntity<?> removeFollowUser(
+			@AuthenticationPrincipal String userId,
+			@PathVariable("publicId") String followingUserPublicId
+	) {
+		this.followService.removeFollowUser(userId, followingUserPublicId);
+		return ResponseEntity.ok().build();
+	}
 }

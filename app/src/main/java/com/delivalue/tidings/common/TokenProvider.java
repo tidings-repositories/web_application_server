@@ -1,5 +1,6 @@
 package com.delivalue.tidings.common;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.io.Decoders;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -8,6 +9,7 @@ import io.jsonwebtoken.security.Keys;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.Optional;
 
 @Component
 public class TokenProvider {
@@ -23,27 +25,36 @@ public class TokenProvider {
 
         return Jwts.builder()
                 .subject(id)
+                .claim("type", type)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expirationTime * 1000L))
                 .signWith(this.key)
                 .compact();
     }
 
-    public String getUserId(String token) {
-        return Jwts.parser()
-                .verifyWith(this.key)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload()
-                .getSubject();
+    public Optional<String> extractUserId(String token) {
+        return extractUserIdByType(token, "ACCESS");
     }
 
-    public boolean validate(String token) {
+    public Optional<String> extractRefreshUserId(String token) {
+        return extractUserIdByType(token, "REFRESH");
+    }
+
+    private Optional<String> extractUserIdByType(String token, String expectedType) {
         try {
-            this.getUserId(token);
-            return true;
+            Claims claims = Jwts.parser()
+                    .verifyWith(this.key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+
+            if (!expectedType.equals(claims.get("type", String.class))) {
+                return Optional.empty();
+            }
+
+            return Optional.ofNullable(claims.getSubject());
         } catch (Exception e) {
-            return false;
+            return Optional.empty();
         }
     }
 }
