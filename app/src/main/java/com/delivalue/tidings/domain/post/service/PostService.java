@@ -3,6 +3,7 @@ package com.delivalue.tidings.domain.post.service;
 import com.delivalue.tidings.domain.data.entity.*;
 import com.delivalue.tidings.domain.data.repository.*;
 import com.delivalue.tidings.domain.post.dto.PostCreateRequest;
+import com.delivalue.tidings.domain.post.dto.PostImpressionRequest;
 import com.delivalue.tidings.domain.post.dto.PostResponse;
 import com.mongodb.DuplicateKeyException;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,8 @@ public class PostService {
     private final ReportRepository reportRepository;
     private final FollowRepository followRepository;
     private final FeedRepository feedRepository;
+    private final ScrapRepository scrapRepository;
+    private final PostImpressionRepository postImpressionRepository;
 
     @Value("${STELLAGRAM_OFFICIAL_INTERNAL_ID}")
     private String STELLAGRAM_OFFICIAL_ID;
@@ -40,14 +43,17 @@ public class PostService {
     public PostResponse getPostByPostId(String postId) {
         Optional<Post> result = this.postRepository.findByIdAndDeletedAtIsNull(postId);
 
-        if(result.isPresent()) return new PostResponse(result.get());
-        else throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if (result.isPresent()) {
+            return new PostResponse(result.get());
+        } else {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
     }
 
     public List<PostResponse> getRecentPostByCursor(String cursorId, LocalDateTime cursorTime) {
         Query query = new Query();
 
-        if(cursorId != null && cursorTime != null) {
+        if (cursorId != null && cursorTime != null) {
             query.addCriteria(
                 new Criteria().orOperator(
                     Criteria.where("createdAt").lt(cursorTime),
@@ -72,7 +78,7 @@ public class PostService {
         Query query = new Query();
         query.addCriteria(Criteria.where("internalUserId").is(internalId));
 
-        if(cursorId != null && cursorTime != null) {
+        if (cursorId != null && cursorTime != null) {
             query.addCriteria(
                 new Criteria().orOperator(
                     Criteria.where("createdAt").lt(cursorTime),
@@ -101,8 +107,12 @@ public class PostService {
 
     public List<PostResponse> getUserPostByCursor(String userId, LocalDateTime cursorTime) {
         Member member = this.memberRepository.findByPublicId(userId);
-        if(member == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        if(member.getDeletedAt() != null || member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
+        if (member == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        if (member.getDeletedAt() != null || "SUSPENDED".equals(member.getUserState()) || "DEACTIVATED".equals(member.getUserState())) {
+            throw new ResponseStatusException(HttpStatus.GONE);
+        }
 
         Query query = new Query();
         query.addCriteria(
@@ -121,17 +131,21 @@ public class PostService {
 
     public URI createPost(PostCreateRequest request) {
         Optional<Member> requestMember = this.memberRepository.findById(request.getInternalUserId());
-        if(requestMember.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (requestMember.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
 
         Member member = requestMember.get();
-        if(member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 차단된 사용자입니다.");
+        if ("SUSPENDED".equals(member.getUserState())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 정지된 사용자입니다.");
+        }
 
         request.setUserId(member.getPublicId());
         request.setUserName(member.getName());
         request.setProfileImage(member.getProfileImage());
 
         Badge profileBadge = member.getBadge();
-        if(profileBadge != null) {
+        if (profileBadge != null) {
             Post.Badge postBadge = new Post.Badge();
             postBadge.setId(profileBadge.getId());
             postBadge.setName(profileBadge.getName());
@@ -148,7 +162,7 @@ public class PostService {
         }
 
         //TODO: 이후 Worker server로 기능 이동
-        try{
+        try {
             int expirationTime = 3600 * 24 * 7;
             Date expiredAt = new Date(System.currentTimeMillis() + expirationTime * 1000L);
 
@@ -171,11 +185,15 @@ public class PostService {
 
     public void deletePost(String internalId, String postId) {
         Optional<Post> findPost = this.postRepository.findByIdAndDeletedAtIsNull(postId);
-        if(findPost.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if (findPost.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
 
         Post post = findPost.get();
-        if(!internalId.equals(post.getInternalUserId()) &&
-                !internalId.equals(this.STELLAGRAM_OFFICIAL_ID)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if (!internalId.equals(post.getInternalUserId()) &&
+                !internalId.equals(this.STELLAGRAM_OFFICIAL_ID)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
 
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
@@ -183,18 +201,18 @@ public class PostService {
         Update update = new Update().set("deletedAt", now).set("scrapCount", 0);
         this.mongoTemplate.updateFirst(query, update, Post.class);
 
-        if(post.isOrigin() && post.getScrapCount() > 0) {
+        if (post.isOrigin() && post.getScrapCount() > 0) {
             //Spread deleted 설정
             Query deleteSpreadQuery = Query.query(Criteria.where("originalPostId").is(post.getId()));
             this.mongoTemplate.updateMulti(deleteSpreadQuery, update, Post.class);
-        } else if(!post.isOrigin()) {
+        } else if (!post.isOrigin()) {
             try {
                 Query scrapDecreaseQuery = Query.query(Criteria.where("_id").is(post.getOriginalPostId()));
                 Update scrapDecreaseUpdate = new Update().inc("scrapCount", -1);
                 this.mongoTemplate.updateFirst(scrapDecreaseQuery, scrapDecreaseUpdate, Post.class);
             } catch (Exception e) {
-                Update compenstateUpdate = new Update().set("deletedAt", null);
-                this.mongoTemplate.updateFirst(query, compenstateUpdate, Post.class);
+                Update compensateUpdate = new Update().set("deletedAt", null);
+                this.mongoTemplate.updateFirst(query, compensateUpdate, Post.class);
                 throw e;
             }
         }
@@ -203,18 +221,28 @@ public class PostService {
     public void likePost(String internalId, String postId) {
         //Add Like document
         Optional<Member> likeMember = this.memberRepository.findById(internalId);
-        if(likeMember.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (likeMember.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
         Member member = likeMember.get();
-        if(member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 차단된 사용자입니다.");
+        if ("SUSPENDED".equals(member.getUserState())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 정지된 사용자입니다.");
+        }
 
         Optional<Post> likePost = this.postRepository.findById(postId);
-        if(likePost.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (likePost.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
 
         Post post = likePost.get();
-        if(post.getInternalUserId().equals(internalId)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if (post.getInternalUserId().equals(internalId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
 
         Optional<Like> like = this.postLikeRepository.findByLikeUserIdAndPostId(member.getPublicId(), postId);
-        if(like.isPresent()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (like.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
 
         Like newLikeEntity = Like.builder()
                 .likeUserId(member.getPublicId())
@@ -238,11 +266,15 @@ public class PostService {
     public void unlikePost(String internalId, String postId) {
         //Remove Like document
         Optional<Member> unlikeMember = this.memberRepository.findById(internalId);
-        if(unlikeMember.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (unlikeMember.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
         Member member = unlikeMember.get();
 
         Optional<Like> like = this.postLikeRepository.findByLikeUserIdAndPostId(member.getPublicId(), postId);
-        if(like.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (like.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
 
         Like likeEntity = like.get();
         this.postLikeRepository.delete(likeEntity);
@@ -260,13 +292,17 @@ public class PostService {
 
     public List<PostResponse> getUserLikePostByCursor(String userId, LocalDateTime cursorTime, String cursorId) {
         Member member = this.memberRepository.findByPublicId(userId);
-        if(member == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        if(member.getDeletedAt() != null || member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
+        if (member == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        if (member.getDeletedAt() != null || "SUSPENDED".equals(member.getUserState()) || "DEACTIVATED".equals(member.getUserState())) {
+            throw new ResponseStatusException(HttpStatus.GONE);
+        }
 
         Query query = new Query();
         query.addCriteria(Criteria.where("likeUserId").is(userId));
 
-        if(cursorId != null) {
+        if (cursorId != null) {
             query.addCriteria(
                     new Criteria().orOperator(
                             Criteria.where("likeAt").lt(cursorTime),
@@ -290,7 +326,9 @@ public class PostService {
         return likeList.stream()
             .map(thisLike -> {
                 Post thisPost = likePostMap.get(thisLike.getPostId());
-                if(thisPost == null) return null;
+                if (thisPost == null) {
+                    return null;
+                }
 
                 PostResponse thisPostResponse = new PostResponse(thisPost);
                 thisPostResponse.setLike_at(thisLike.getLikeAt());
@@ -303,14 +341,20 @@ public class PostService {
     public URI scrapPost(String internalId, String postId) {
         //멤버 존재하는지 확인
         Optional<Member> requestMember = this.memberRepository.findById(internalId);
-        if(requestMember.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (requestMember.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
 
         Member member = requestMember.get();
-        if(member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 차단된 사용자입니다.");
+        if ("SUSPENDED".equals(member.getUserState())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 정지된 사용자입니다.");
+        }
 
         //포스트가 존재하는지 확인
         Optional<Post> targetPost = this.postRepository.findByIdAndDeletedAtIsNull(postId);
-        if(targetPost.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (targetPost.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
         Post post = targetPost.get();
 
         //동일한 포스트를 이미 스크랩했는지 확인
@@ -318,10 +362,11 @@ public class PostService {
                 post.isOrigin() ? postId : post.getOriginalPostId(),
                 internalId
         );
-        if(existScrap.isPresent()) {
+        if (existScrap.isPresent()) {
             Post presentScrap = existScrap.get();
-            if(presentScrap.getDeletedAt() == null)
+            if (presentScrap.getDeletedAt() == null) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+            }
 
             //만약 스크랩 이력이 있지만, 삭제했었다면 삭제 취소
             presentScrap.setCreatedAt(LocalDateTime.now(ZoneOffset.UTC));
@@ -342,8 +387,9 @@ public class PostService {
         }
 
         //포스트 주인이 자신의 포스트를 스크랩하려는지 확인
-        if(internalId.equals(post.getInternalUserId()) || member.getPublicId().equals(post.getOriginalUserId()))
+        if (internalId.equals(post.getInternalUserId()) || member.getPublicId().equals(post.getOriginalUserId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
 
         //스크랩용 새 Post 객체 생성
         Post scrap = Post.builder()
@@ -384,7 +430,7 @@ public class PostService {
 
         //TODO: 이후 Worker server로 기능 이동
         //스크랩한 포스트도 피드에 반영
-        try{
+        try {
             int expirationTime = 3600 * 24 * 7;
             Date expiredAt = new Date(System.currentTimeMillis() + expirationTime * 1000L);
 
@@ -413,5 +459,91 @@ public class PostService {
                 .reportAt(LocalDateTime.now(ZoneOffset.UTC)).build();
 
         this.reportRepository.insert(report);
+    }
+
+    public void bookmarkPost(String internalId, String postId) {
+        Optional<Member> requestMember = this.memberRepository.findById(internalId);
+        if (requestMember.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
+        Member member = requestMember.get();
+        if ("SUSPENDED".equals(member.getUserState())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 정지된 사용자입니다.");
+        }
+
+        Optional<Post> targetPost = this.postRepository.findByIdAndDeletedAtIsNull(postId);
+        if (targetPost.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+
+        if (this.scrapRepository.existsByUserIdAndPostId(internalId, postId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
+
+        Scrap scrap = Scrap.builder()
+                .postId(postId)
+                .userId(internalId)
+                .postCreatedAt(targetPost.get().getCreatedAt().toString())
+                .scrappedAt(LocalDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        this.scrapRepository.insert(scrap);
+    }
+
+    public void unbookmarkPost(String internalId, String postId) {
+        Optional<Scrap> existScrap = this.scrapRepository.findByUserIdAndPostId(internalId, postId);
+        if (existScrap.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        this.scrapRepository.delete(existScrap.get());
+    }
+
+    public List<PostResponse> getUserBookmarkByCursor(String internalId, LocalDateTime cursorTime) {
+        Query query = new Query();
+        query.addCriteria(Criteria.where("userId").is(internalId));
+
+        if (cursorTime != null) {
+            query.addCriteria(Criteria.where("scrappedAt").lt(cursorTime));
+        }
+
+        query.with(Sort.by(Sort.Direction.DESC, "scrappedAt"));
+        query.limit(15);
+
+        List<Scrap> scraps = this.mongoTemplate.find(query, Scrap.class);
+        List<String> postIds = scraps.stream().map(Scrap::getPostId).toList();
+
+        Map<String, Post> postMap = this.postRepository.findByIdInAndDeletedAtIsNull(postIds).stream()
+                .collect(Collectors.toMap(Post::getId, java.util.function.Function.identity()));
+
+        return scraps.stream()
+                .map(s -> postMap.get(s.getPostId()))
+                .filter(Objects::nonNull)
+                .map(PostResponse::new)
+                .toList();
+    }
+
+    public void recordImpression(String internalId, String postId, PostImpressionRequest request) {
+        if (this.postImpressionRepository.existsByViewerIdAndPostId(internalId, postId)) {
+            return; // 이미 노출 기록 있으면 무시 (중복 방지)
+        }
+
+        PostImpression impression = PostImpression.builder()
+                .postId(postId)
+                .viewerId(internalId)
+                .viewedAt(LocalDateTime.now(ZoneOffset.UTC))
+                .displayLocation(request.getDisplayLocation())
+                .isLinger(request.getIsLinger())
+                .watchCompletionRate(request.getWatchCompletionRate())
+                .dwellTimeMs(request.getDwellTimeMs())
+                .isSkipped(request.getIsSkipped())
+                .clickDwellBucket(request.getClickDwellBucket())
+                .build();
+
+        this.postImpressionRepository.insert(impression);
+
+        // 뷰 카운트 증가
+        Query q = Query.query(Criteria.where("_id").is(postId));
+        Update u = new Update().inc("viewCount", 1);
+        this.mongoTemplate.updateFirst(q, u, Post.class);
     }
 }

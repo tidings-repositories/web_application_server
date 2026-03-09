@@ -43,6 +43,16 @@ public class MemberQueryRepositoryImpl implements MemberQueryRepository{
             hasUpdate = true;
         }
 
+        if(request.getCountryCode() != null) {
+            update.set(qMember.countryCode, request.getCountryCode());
+            hasUpdate = true;
+        }
+
+        if(request.getLanguageCode() != null) {
+            update.set(qMember.languageCode, request.getLanguageCode());
+            hasUpdate = true;
+        }
+
         return hasUpdate ? update.where(qMember.id.eq(request.getId())).execute() : 0;
     }
 }

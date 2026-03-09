@@ -27,6 +27,18 @@ public class PostCreateRequest {
     private Integer scrapCount;
     private boolean isOrigin;
 
+    // 기능 31: 게이밍 SNS 특화
+    private String postSubType;
+    private Long gameId;
+    private List<String> gameGenres;
+    private List<String> gamePlatforms;
+    private String gameVersion;
+
+    // 기능 46: 대화 스레딩
+    private String inReplyToPostId;
+    private String inReplyToMemberId;
+    private String conversationId;
+
     public PostCreateRequest(PostContentRequest requestBody) {
         Post.Content postContent = new Post.Content();
         postContent.setText(requestBody.getText());
@@ -52,14 +64,47 @@ public class PostCreateRequest {
         this.likeCount = 0;
         this.scrapCount = 0;
         this.isOrigin = true;
+
+        this.postSubType = requestBody.getPostSubType() != null ? requestBody.getPostSubType() : "TEXT";
+        this.gameId = requestBody.getGameId();
+        this.gameGenres = requestBody.getGameGenres() != null ? requestBody.getGameGenres() : new ArrayList<>();
+        this.gamePlatforms = requestBody.getGamePlatforms() != null ? requestBody.getGamePlatforms() : new ArrayList<>();
+        this.gameVersion = requestBody.getGameVersion();
+        this.inReplyToPostId = requestBody.getInReplyToPostId();
     }
 
     public Post toEntity() {
-        return Post.builder().id(this.id).internalUserId(this.internalUserId)
-                .userId(this.userId).userName(this.userName)
-                .profileImage(this.profileImage).badge(this.badge)
-                .createdAt(this.createdAt).content(this.content)
-                .commentCount(this.commentCount).likeCount(this.likeCount).scrapCount(this.scrapCount)
-                .isOrigin(this.isOrigin).build();
+        boolean hasMedia = this.content.getMedia() != null && !this.content.getMedia().isEmpty();
+        boolean isReply = this.inReplyToPostId != null;
+
+        return Post.builder()
+                .id(this.id)
+                .internalUserId(this.internalUserId)
+                .userId(this.userId)
+                .userName(this.userName)
+                .profileImage(this.profileImage)
+                .badge(this.badge)
+                .createdAt(this.createdAt)
+                .content(this.content)
+                .commentCount(this.commentCount)
+                .likeCount(this.likeCount)
+                .scrapCount(this.scrapCount)
+                .isOrigin(this.isOrigin)
+                .viewCount(0)
+                .repostCount(0)
+                .hasMedia(hasMedia)
+                .isReply(isReply)
+                .isRetweet(false)
+                .postSubType(this.postSubType)
+                .gameId(this.gameId)
+                .gameGenres(this.gameGenres)
+                .gamePlatforms(this.gamePlatforms)
+                .gameVersion(this.gameVersion)
+                .inReplyToPostId(this.inReplyToPostId)
+                .inReplyToMemberId(this.inReplyToMemberId)
+                .conversationId(isReply ? this.inReplyToPostId : this.id) // 루트면 자신이 conversationId
+                .conversationDepth(isReply ? 1 : 0)
+                .visibilityAction("ALLOW")
+                .build();
     }
 }

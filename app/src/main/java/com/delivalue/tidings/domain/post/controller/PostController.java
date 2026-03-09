@@ -3,6 +3,7 @@ package com.delivalue.tidings.domain.post.controller;
 import com.delivalue.tidings.domain.post.dto.CursorRequest;
 import com.delivalue.tidings.domain.post.dto.PostContentRequest;
 import com.delivalue.tidings.domain.post.dto.PostCreateRequest;
+import com.delivalue.tidings.domain.post.dto.PostImpressionRequest;
 import com.delivalue.tidings.domain.post.dto.PostResponse;
 import com.delivalue.tidings.domain.post.service.PostService;
 import jakarta.validation.Valid;
@@ -105,6 +106,34 @@ public class PostController {
 			@PathVariable("postId") String postId
 	) {
 		this.postService.reportPost(userId, postId);
+		return ResponseEntity.ok().build();
+	}
+
+	@PostMapping("/{postId}/bookmark")
+	public ResponseEntity<?> requestBookmarkPost(
+			@AuthenticationPrincipal String userId,
+			@PathVariable("postId") String postId
+	) {
+		this.postService.bookmarkPost(userId, postId);
+		return ResponseEntity.ok().build();
+	}
+
+	@DeleteMapping("/{postId}/bookmark")
+	public ResponseEntity<?> requestUnbookmarkPost(
+			@AuthenticationPrincipal String userId,
+			@PathVariable("postId") String postId
+	) {
+		this.postService.unbookmarkPost(userId, postId);
+		return ResponseEntity.noContent().build();
+	}
+
+	@PostMapping("/{postId}/impression")
+	public ResponseEntity<?> requestRecordImpression(
+			@AuthenticationPrincipal String userId,
+			@PathVariable("postId") String postId,
+			@RequestBody PostImpressionRequest body
+	) {
+		this.postService.recordImpression(userId, postId, body);
 		return ResponseEntity.ok().build();
 	}
 }
