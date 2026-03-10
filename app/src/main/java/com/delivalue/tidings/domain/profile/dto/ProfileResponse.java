@@ -13,6 +13,10 @@ public class ProfileResponse {
     private final BadgeDto badge;
     private final int following_count;
     private final int follower_count;
+    private final boolean is_verified;
+    private final String user_state;
+    private final String country_code;
+    private final String language_code;
 
     public ProfileResponse(Member member) {
         this.user_id = member.getPublicId();
@@ -22,7 +26,12 @@ public class ProfileResponse {
         this.badge = member.getBadge() != null ? new BadgeDto(member.getBadge()) : null;
         this.following_count = member.getFollowingCount();
         this.follower_count = member.getFollowerCount();
+        this.is_verified = Boolean.TRUE.equals(member.getIsVerified());
+        this.user_state = member.getUserState();
+        this.country_code = member.getCountryCode();
+        this.language_code = member.getLanguageCode();
     }
+
     public ProfileResponse(MemberSearch member, BadgeDto badge) {
         this.user_id = member.getPublicId();
         this.user_name = member.getName();
@@ -31,5 +40,9 @@ public class ProfileResponse {
         this.badge = badge;
         this.following_count = member.getFollowingCount();
         this.follower_count = member.getFollowerCount();
+        this.is_verified = false;
+        this.user_state = "NORMAL";
+        this.country_code = null;
+        this.language_code = null;
     }
 }

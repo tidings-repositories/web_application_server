@@ -13,17 +13,24 @@ public class ProfileUpdateRequest {
     private final String bio;
     private final String profileImage;
     private Integer badgeId;
+    private final String countryCode;
+    private final String languageCode;
 
-    public ProfileUpdateRequest(String id, String userName, String bio, String profileImage, Integer badgeId) {
+    public ProfileUpdateRequest(String id, String userName, String bio, String profileImage, Integer badgeId,
+                                String countryCode, String languageCode) {
         this.id = id;
         this.userName = userName;
         this.bio = bio;
         this.badgeId = badgeId;
+        this.countryCode = countryCode;
+        this.languageCode = languageCode;
 
-        if(profileImage != null) {
+        if (profileImage != null) {
             String CDN_ORIGIN = "https://cdn.stellagram.kr";
             String path = URI.create(profileImage).getPath();
             this.profileImage = CDN_ORIGIN + path;
-        } else this.profileImage = null;
+        } else {
+            this.profileImage = null;
+        }
     }
 }

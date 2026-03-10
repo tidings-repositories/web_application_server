@@ -33,6 +33,13 @@ public class Comment {
     @Field(write = Field.Write.NON_NULL)
     private ObjectId rootCommentId;
 
+    // 기능 20: VisibilityLib 댓글 섹션 분류 (DOC_08/28)
+    @Field(write = Field.Write.NON_NULL)
+    private Double toxicityScore;
+
+    @Builder.Default
+    private String visibilityAction = "ALLOW"; // ALLOW / LOW_QUALITY_SECTION / ABUSIVE_QUALITY_SECTION / DROP
+
     @Getter
     @Setter
     public static class Badge {

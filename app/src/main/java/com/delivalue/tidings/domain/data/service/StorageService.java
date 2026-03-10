@@ -29,7 +29,7 @@ public class StorageService {
     public URL getProfilePresignedUploadUrl(String internalId, String contentType) {
         Optional<Member> member = this.memberRepository.findById(internalId);
         if(member.isEmpty()) return null;
-        if(member.get().getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.get().getBanReason() + " 사유로 차단된 사용자입니다.");
+        if("SUSPENDED".equals(member.get().getUserState())) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "계정이 정지된 사용자입니다.");
 
 
         String publicId = member.get().getPublicId();
@@ -42,7 +42,7 @@ public class StorageService {
     public URL getPostMediaPresignedUploadUrl(String internalId, String contentType) {
         Optional<Member> member = this.memberRepository.findById(internalId);
         if(member.isEmpty()) return null;
-        if(member.get().getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.get().getBanReason() + " 사유로 차단된 사용자입니다.");
+        if("SUSPENDED".equals(member.get().getUserState())) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "계정이 정지된 사용자입니다.");
 
 
         String publicId = member.get().getPublicId();
@@ -53,23 +53,23 @@ public class StorageService {
     }
 
     private URL generatePresignedUploadUrl(String path, String contentType) {
-        S3Presigner presigner = S3Presigner.builder()
+        try (S3Presigner presigner = S3Presigner.builder()
                 .region(Region.AP_NORTHEAST_2)
                 .credentialsProvider(DefaultCredentialsProvider.create())
-                .build();
+                .build()) {
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(this.bucket)
+                    .key(path)
+                    .contentType(contentType)
+                    .build();
 
-        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                .bucket(this.bucket)
-                .key(path)
-                .contentType(contentType)
-                .build();
+            PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofMinutes(3))
+                    .putObjectRequest(putObjectRequest)
+                    .build();
 
-        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofMinutes(3))
-                .putObjectRequest(putObjectRequest)
-                .build();
-
-        PresignedPutObjectRequest presignedPutObjectRequest = presigner.presignPutObject(presignRequest);
-        return presignedPutObjectRequest.url();
+            PresignedPutObjectRequest presignedPutObjectRequest = presigner.presignPutObject(presignRequest);
+            return presignedPutObjectRequest.url();
+        }
     }
 }
