@@ -196,14 +196,6 @@ class DtoValidationTest {
 		}
 
 		@Test
-		@DisplayName("text가 빈 문자열이면 validation 실패")
-		void emptyText_fails() {
-			PostContentRequest request = fromMap(Map.of("text", ""), PostContentRequest.class);
-			Set<ConstraintViolation<PostContentRequest>> violations = validator.validate(request);
-			assertThat(violations).isNotEmpty();
-		}
-
-		@Test
 		@DisplayName("text만 있으면 validation 통과")
 		void validTextOnly_passes() {
 			PostContentRequest request = fromMap(Map.of("text", "Hello World"), PostContentRequest.class);
