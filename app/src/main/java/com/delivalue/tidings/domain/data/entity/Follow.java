@@ -20,4 +20,12 @@ public class Follow {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    // 기능 3: RealGraph 팔로잉 가중치 탐색 (DOC_06)
+    @Column(name = "interaction_score")
+    @Builder.Default
+    private Double interactionScore = 0.0;
+
+    @Column(name = "score_updated_at")
+    private LocalDateTime scoreUpdatedAt;
 }

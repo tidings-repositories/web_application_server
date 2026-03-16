@@ -36,15 +36,19 @@ public class CommentService {
         List<Comment> thisPostCommentList = this.commentRepository.findByPostIdOrderByCreatedAtAsc(postId);
 
         //수집
-        for(Comment comment : thisPostCommentList) {
-            if(comment.getDeletedAt() != null && !comment.isRoot()) continue;
+        for (Comment comment : thisPostCommentList) {
+            if (comment.getDeletedAt() != null && !comment.isRoot()) {
+                continue;
+            }
 
             CommentResponse thisComment = new CommentResponse(comment);
-            if(thisComment.isRoot()) result.put(thisComment.getComment_id().toString(), thisComment);
-            else {
+            if (thisComment.isRoot()) {
+                result.put(thisComment.getComment_id().toString(), thisComment);
+            } else {
                 CommentResponse rootComment = result.get(comment.getRootCommentId().toString());
-                if(rootComment == null) continue;
-
+                if (rootComment == null) {
+                    continue;
+                }
                 rootComment.getReply().add(thisComment);
             }
         }
@@ -54,8 +58,12 @@ public class CommentService {
 
     public List<CommentResponse> getUserCommentByCursor(String userId, LocalDateTime cursorTime) {
         Member member = this.memberRepository.findByPublicId(userId);
-        if(member == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        if(member.getDeletedAt() != null || member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
+        if (member == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        if (member.getDeletedAt() != null || "SUSPENDED".equals(member.getUserState()) || "DEACTIVATED".equals(member.getUserState())) {
+            throw new ResponseStatusException(HttpStatus.GONE);
+        }
 
         Query query = new Query();
         query.addCriteria(
@@ -74,10 +82,14 @@ public class CommentService {
 
     public URI addComment(String internalId, String postId, CommentCreateRequest body) {
         Optional<Member> requestMember = this.memberRepository.findByIdAndDeletedAtIsNull(internalId);
-        if(requestMember.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (requestMember.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
 
         Member member = requestMember.get();
-        if(member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 차단된 사용자입니다.");
+        if ("SUSPENDED".equals(member.getUserState())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "계정이 정지된 사용자입니다.");
+        }
 
         Comment.CommentBuilder commentBuilder = Comment.builder();
         commentBuilder
@@ -88,7 +100,7 @@ public class CommentService {
                 .isRoot(true);
 
         Badge profileBadge = member.getBadge();
-        if(profileBadge != null) {
+        if (profileBadge != null) {
             Comment.Badge badge = new Comment.Badge();
             badge.setId(profileBadge.getId());
             badge.setName(profileBadge.getName());
@@ -113,10 +125,14 @@ public class CommentService {
 
     public URI addReply(String internalId, String postId, String commentId, CommentCreateRequest body) {
         Optional<Member> requestMember = this.memberRepository.findByIdAndDeletedAtIsNull(internalId);
-        if(requestMember.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (requestMember.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
 
         Member member = requestMember.get();
-        if(member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 차단된 사용자입니다.");
+        if ("SUSPENDED".equals(member.getUserState())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "계정이 정지된 사용자입니다.");
+        }
 
         Comment.CommentBuilder commentBuilder = Comment.builder();
         commentBuilder
@@ -127,7 +143,7 @@ public class CommentService {
                 .isRoot(false).rootCommentId(new ObjectId(commentId));
 
         Badge profileBadge = member.getBadge();
-        if(profileBadge != null) {
+        if (profileBadge != null) {
             Comment.Badge badge = new Comment.Badge();
             badge.setId(profileBadge.getId());
             badge.setName(profileBadge.getName());
@@ -153,10 +169,14 @@ public class CommentService {
     public void deleteComment(String internalId, String commentId) {
         ObjectId id = new ObjectId(commentId);
         Optional<Comment> targetComment = this.commentRepository.findById(id);
-        if(targetComment.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (targetComment.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
 
         Comment comment = targetComment.get();
-        if(!internalId.equals(comment.getInternalUserId())) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if (!internalId.equals(comment.getInternalUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
 
         Query query = Query.query(Criteria.where("_id").is(id));
         Update update = new Update().set("deletedAt", LocalDateTime.now(ZoneOffset.UTC));
@@ -164,11 +184,11 @@ public class CommentService {
 
         try {
             Query postQuery = Query.query(Criteria.where("_id").is(comment.getPostId()));
-            Update DecreaseCountUpdate = new Update().inc("commentCount", -1);
-            this.mongoTemplate.updateFirst(postQuery, DecreaseCountUpdate, Post.class);
+            Update decreaseCountUpdate = new Update().inc("commentCount", -1);
+            this.mongoTemplate.updateFirst(postQuery, decreaseCountUpdate, Post.class);
         } catch (Exception e) {
-            Update compenstateUpdate = new Update().set("deletedAt", null);
-            this.mongoTemplate.updateFirst(query, compenstateUpdate, Comment.class);
+            Update compensateUpdate = new Update().set("deletedAt", null);
+            this.mongoTemplate.updateFirst(query, compensateUpdate, Comment.class);
             throw e;
         }
     }

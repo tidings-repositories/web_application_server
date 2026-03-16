@@ -31,19 +31,32 @@ public class ProfileService {
 
     public ProfileResponse getProfileById(String internalId) {
         Optional<Member> resultMember = this.memberRepository.findById(internalId);
-        if(resultMember.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if (resultMember.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
 
         Member member = resultMember.get();
-        if(member.getDeletedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
-        if(member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 차단된 사용자입니다.");
+        if (member.getDeletedAt() != null) {
+            throw new ResponseStatusException(HttpStatus.GONE);
+        }
+        if ("SUSPENDED".equals(member.getUserState())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 정지된 사용자입니다.");
+        }
+        if ("DEACTIVATED".equals(member.getUserState())) {
+            throw new ResponseStatusException(HttpStatus.GONE);
+        }
 
         return new ProfileResponse(member);
     }
 
     public ProfileResponse getProfileByPublicId(String publicId) {
         Member member = this.memberRepository.findByPublicId(publicId);
-        if(member == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        if(member.getDeletedAt() != null || member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.GONE);
+        if (member == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        if (member.getDeletedAt() != null || "SUSPENDED".equals(member.getUserState()) || "DEACTIVATED".equals(member.getUserState())) {
+            throw new ResponseStatusException(HttpStatus.GONE);
+        }
 
         return new ProfileResponse(member);
     }
@@ -55,28 +68,34 @@ public class ProfileService {
 
     public void updateProfile(ProfileUpdateRequest profileUpdateRequest) {
         Optional<Member> updateMember = this.memberRepository.findById(profileUpdateRequest.getId());
-        if(updateMember.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (updateMember.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
 
         Member member = updateMember.get();
-        if(member.getBannedAt() != null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 차단된 사용자입니다.");
+        if ("SUSPENDED".equals(member.getUserState())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, member.getBanReason() + " 사유로 정지된 사용자입니다.");
+        }
 
         boolean needSpread = false;
         Update spreadUpdate = new Update();
 
-        if(profileUpdateRequest.getProfileImage() != null) {
+        if (profileUpdateRequest.getProfileImage() != null) {
             spreadUpdate.set("profileImage", profileUpdateRequest.getProfileImage());
             needSpread = true;
         }
-        if(profileUpdateRequest.getUserName() != null) {
+        if (profileUpdateRequest.getUserName() != null) {
             spreadUpdate.set("userName", profileUpdateRequest.getUserName());
             needSpread = true;
         }
-        if(profileUpdateRequest.getBadgeId() != null) {
+        if (profileUpdateRequest.getBadgeId() != null) {
             if (profileUpdateRequest.getBadgeId() == 0) {
                 spreadUpdate.set("badge", null);
             } else {
                 MemberBadge memberBadge = this.memberBadgeRepository.findByMemberIdAndBadge_Id(profileUpdateRequest.getId(), profileUpdateRequest.getBadgeId());
-                if(memberBadge == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+                if (memberBadge == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+                }
 
                 Map<String, Object> badge = new HashMap<>();
                 Badge expectBadge = memberBadge.getBadge();
@@ -114,7 +133,7 @@ public class ProfileService {
         );
 
         //TODO: 이후 Worker server로 기능 이동
-        if(needSpread) {
+        if (needSpread) {
             this.mongoTemplate.updateMulti(findPostInternalUserIdQuery, spreadUpdate, Post.class);
             this.mongoTemplate.updateMulti(findPostOriginUserIdQuery, spreadUpdate, Post.class);
             this.mongoTemplate.updateMulti(findCommentInternalUserIdQuery, spreadUpdate, Comment.class);

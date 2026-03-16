@@ -13,4 +13,8 @@ public class ProfileUpdateBody {
 	@JsonProperty("profile_image")
 	private String profileImage;
 	private Integer badge;
+	@JsonProperty("country_code")
+	private String countryCode;
+	@JsonProperty("language_code")
+	private String languageCode;
 }

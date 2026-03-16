@@ -40,14 +40,14 @@ public class AuthService {
     public PublicIdValidateResponse checkPublicIdUsable(String publicId) {
         PublicIdValidateResponse response = new PublicIdValidateResponse(publicId);
 
-        if(ForbiddenWordFilter.containsForbiddenWord(publicId)) {
+        if (ForbiddenWordFilter.containsForbiddenWord(publicId)) {
             response.setResult(false);
             response.setStatusMessage("disableId");
         }
 
-        if(response.isResult()) {
+        if (response.isResult()) {
             Member member = this.memberRepository.findByPublicId(publicId);
-            if(member != null) {
+            if (member != null) {
                 response.setResult(false);
                 response.setStatusMessage("alreadyTaken");
             }
@@ -60,7 +60,7 @@ public class AuthService {
     public LoginResponse registerMember(RegisterRequest newMemberData) {
         Optional<Member> existMember = this.memberRepository.findById(newMemberData.getInternalId());
 
-        if(existMember.isPresent()) {
+        if (existMember.isPresent()) {
             Member member = existMember.get();
             member.setDeletedAt(null);
             this.memberRepository.save(member);
@@ -68,9 +68,10 @@ public class AuthService {
             Member memberEntity = newMemberData.toEntity();
             this.memberRepository.save(memberEntity);
 
-            Follow followEntity = new Follow(
-                    new FollowId(this.STELLAGRAM_OFFICIAL_ID, newMemberData.getInternalId()),
-                    LocalDateTime.now(ZoneOffset.UTC));
+            Follow followEntity = Follow.builder()
+                    .id(new FollowId(this.STELLAGRAM_OFFICIAL_ID, newMemberData.getInternalId()))
+                    .createdAt(LocalDateTime.now(ZoneOffset.UTC))
+                    .build();
             this.followRepository.save(followEntity);
             this.memberRepository.increaseFollowerCount(this.STELLAGRAM_OFFICIAL_ID);
         }
@@ -84,10 +85,14 @@ public class AuthService {
     @Transactional
     public void deleteMember(String internalId) {
         Optional<Member> deleteMember = this.memberRepository.findById(internalId);
-        if(deleteMember.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if (deleteMember.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
 
         Member member = deleteMember.get();
-        if(member.getDeletedAt() != null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (member.getDeletedAt() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
 
         member.setDeletedAt(LocalDateTime.now(ZoneOffset.UTC));
         this.memberRepository.save(member);

@@ -59,7 +59,8 @@ public class ProfileController {
 		}
 
 		ProfileUpdateRequest profileUpdateRequest = new ProfileUpdateRequest(
-				userId, body.getUserName(), body.getBio(), body.getProfileImage(), body.getBadge()
+				userId, body.getUserName(), body.getBio(), body.getProfileImage(), body.getBadge(),
+				body.getCountryCode(), body.getLanguageCode()
 		);
 		this.profileService.updateProfile(profileUpdateRequest);
 
@@ -129,6 +130,18 @@ public class ProfileController {
 		LocalDateTime cursorTime = body.getCreatedAt().atZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
 
 		List<PostResponse> result = this.postService.getUserLikePostByCursor(publicId, cursorTime, body.getPostId());
+		return ResponseEntity.ok(result);
+	}
+
+	@PostMapping("/bookmarks")
+	public ResponseEntity<List<PostResponse>> requestMyBookmarks(
+			@AuthenticationPrincipal String userId,
+			@RequestBody CursorRequest body
+	) {
+		LocalDateTime cursorTime = body.getCreatedAt() != null
+				? body.getCreatedAt().atZoneSameInstant(ZoneOffset.UTC).toLocalDateTime()
+				: null;
+		List<PostResponse> result = this.postService.getUserBookmarkByCursor(userId, cursorTime);
 		return ResponseEntity.ok(result);
 	}
 }

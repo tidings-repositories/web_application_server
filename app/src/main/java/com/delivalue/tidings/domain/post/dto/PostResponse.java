@@ -25,23 +25,50 @@ public class PostResponse {
     private Integer comment_count;
     private Integer like_count;
     private Integer scrap_count;
+    private Integer view_count;
+    private Integer repost_count;
     private boolean isOrigin;
 
-    //Required when isOrigin false
+    // Required when isOrigin false
     private String original_post_id;
     private String original_user_id;
 
-    //Required when like post response
+    // Required when like post response
     private LocalDateTime like_at;
 
+    // 기능 31: 게이밍 SNS 특화
+    private String post_sub_type;
+    private Long game_id;
+    private List<String> game_genres;
+    private List<String> game_platforms;
+    private String game_version;
+
+    // 기능 46: 대화 스레딩
+    private String conversation_id;
+    private String in_reply_to_post_id;
+
+    // 기능 17: 가시성
+    private String visibility_action;
+
     public PostResponse(Post post) {
-        this.injection(post);
-    }
-    public PostResponse(PostSearch post) {
-        this.injection(post);
+        this.injectFromInterface(post);
+        this.view_count = post.getViewCount();
+        this.repost_count = post.getRepostCount();
+        this.post_sub_type = post.getPostSubType();
+        this.game_id = post.getGameId();
+        this.game_genres = post.getGameGenres();
+        this.game_platforms = post.getGamePlatforms();
+        this.game_version = post.getGameVersion();
+        this.conversation_id = post.getConversationId();
+        this.in_reply_to_post_id = post.getInReplyToPostId();
+        this.visibility_action = post.getVisibilityAction();
     }
 
-    private void injection(PostStructure post) {
+    public PostResponse(PostSearch post) {
+        this.injectFromInterface(post);
+    }
+
+    private void injectFromInterface(PostStructure post) {
         this.post_id = post.getId();
         this.user_id = post.getUserId();
         this.user_name = post.getUserName();
@@ -55,7 +82,7 @@ public class PostResponse {
         this.create_at = post.getCreatedAt();
 
         ContentStructure contentSource = post.getContent();
-        this.content =  new ContentResponse().getContentResponse(
+        this.content = new ContentResponse().getContentResponse(
                 contentSource.getText(),
                 contentSource.getMedia().stream()
                         .map(postMedia -> new PostMediaResponse().getPostMediaResponse(postMedia.getType(), postMedia.getUrl()))
@@ -92,7 +119,6 @@ public class PostResponse {
         private List<String> tag;
 
         public ContentResponse getContentResponse(String text, List<PostMediaResponse> media, List<String> tag) {
-
             this.text = text;
             this.media = media;
             this.tag = tag;
@@ -102,7 +128,7 @@ public class PostResponse {
 
     @Getter
     public static class PostMediaResponse {
-        private String type; // image/video
+        private String type;
         private String url;
 
         public PostMediaResponse getPostMediaResponse(String type, String url) {
